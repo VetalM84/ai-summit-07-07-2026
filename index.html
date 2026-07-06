@@ -273,6 +273,7 @@ const UI={
   fTools:{ru:"Инструменты и стратегии",en:"Tools & strategy"},
   fVibe:{ru:"Введение в Vibe coding",en:"Intro to Vibe coding"},
   fAgents:{ru:"ИИ-агенты и MCP",en:"AI agents & MCP"},
+  fAbout:{ru:"Обо мне",en:"About me"},
   count:{ru:"тем",en:"topics"},
   topic:{ru:"Тема",en:"Topic"},
   flipTip:{ru:"Кликни по карточке, чтобы перевернуть",en:"Click a card to flip it"},
@@ -561,6 +562,13 @@ const CARDS=[
   tag:{ru:"Интерактив",en:"Interactive"},
   render:()=>multiAgentWidget()+cardImg('multi-agent-workflow-source.png')
 },
+{
+  id:"about",theme:"about",icon:"👤",num:1,
+  title:{ru:"Обо мне",en:"About me"},
+  sub:{ru:"Vitalii Mytenko — контакты и ссылки.",en:"Vitalii Mytenko — contacts and links."},
+  tag:{ru:"Контакты",en:"Contacts"},
+  render:()=>aboutWidget()
+}
 ];
 function compareFlip(A,B,footerNote){
   const face=(cls,side)=>{
@@ -834,6 +842,14 @@ function brainServices(){
 }
 function rightImg(name){var url=encodeURI(name);return '<img class="rowimg-pic" src="'+url+'" alt="" onerror="this.style.display=\'none\'">';}
 function cardImg(name){var url=encodeURI(name);return '<img src="'+url+'" alt="" style="display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:14px;margin-top:18px" onerror="this.style.display=\'none\'">';}
+function aboutWidget(){
+  var L=tr({ru:{lead:'Спасибо за внимание!',li:'LinkedIn',gh:'GitHub — репозиторий',pr:'Эта презентация',scan:'Наведите камеру телефона, чтобы открыть'},
+    en:{lead:'Thanks for your attention!',li:'LinkedIn',gh:'GitHub — repository',pr:'This presentation',scan:'Point your phone camera to open'}});
+  function qr(file,label){return '<div style="background:#fff;border-radius:16px;padding:14px;text-align:center"><img src="'+file+'" alt="'+label+'" style="width:160px;height:160px;object-fit:contain;display:block" onerror="this.style.opacity=0.12"><div style="color:#0f1420;font-weight:700;font-size:13.5px;margin-top:8px">'+label+'</div></div>';}
+  return '<div style="text-align:center;margin-bottom:6px"><div style="font-size:32px;font-weight:800">Vitalii Mytenko</div><div style="color:var(--muted);margin-top:6px;font-size:16px">'+L.lead+'</div></div>'
+    +'<div style="display:flex;gap:18px;flex-wrap:wrap;justify-content:center;margin-top:22px">'+qr('linkedin.jpg',L.li)+qr('github.jpg',L.gh)+qr('vercel.jpg',L.pr)+'</div>'
+    +'<div style="text-align:center;color:var(--muted);font-size:13.5px;margin-top:16px">'+L.scan+'</div>';
+}
 function flowSteps(arr){
   return '<div class="flow">'+arr.map((x,i)=>'<div class="step"><div class="bullet">'+(i+1)+'</div><div class="body"><h4>'+x.h+'</h4><p>'+x.p+'</p></div></div>').join('')+'</div>';
 }
@@ -993,7 +1009,7 @@ function maPlay(){
 }
 
 const CHAPTERS=[
-  {key:'ctx',name:UI.fCtx,col:'#4f7cff'},{key:'know',name:UI.fKnow,col:'#ffc64b'},{key:'tools',name:UI.fTools,col:'#22c3a6'},{key:'vibe',name:UI.fVibe,col:'#a78bfa'},{key:'agents',name:UI.fAgents,col:'#ff8a5c'}
+  {key:'ctx',name:UI.fCtx,col:'#4f7cff'},{key:'know',name:UI.fKnow,col:'#ffc64b'},{key:'tools',name:UI.fTools,col:'#22c3a6'},{key:'vibe',name:UI.fVibe,col:'#a78bfa'},{key:'agents',name:UI.fAgents,col:'#ff8a5c'},{key:'about',name:UI.fAbout,col:'#9aa7c2'}
 ];
 function buildSteps(){var out=[];CHAPTERS.forEach((ch,ci)=>{CARDS.filter(c=>c.theme===ch.key).forEach(c=>out.push({card:c,ch:ci}));});return out;}
 var STEPS=buildSteps();var CUR=0;

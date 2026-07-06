@@ -1,0 +1,1029 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Power User — Interactive board</title>
+<style>
+  :root{
+    --bg:#0f1420;--bg2:#161d2e;--card:#1b2438;--card2:#212c45;
+    --ink:#eef2fb;--muted:#9aa7c2;--line:#2b3652;
+    --accent:#4f7cff;--accent2:#22c3a6;--warn:#ff6b6b;--gold:#ffc64b;
+    --power:#6ea8ff;--radius:18px;--shadow:0 18px 40px rgba(0,0,0,.45);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:"Segoe UI",Roboto,-apple-system,system-ui,Arial,sans-serif;
+    background:radial-gradient(1200px 700px at 15% -10%, #1d2740 0%, var(--bg) 55%) fixed;
+    color:var(--ink);min-height:100vh;-webkit-font-smoothing:antialiased}
+  a{color:var(--accent)}
+  header.board-head{padding:34px 30px 10px;max-width:1280px;margin:0 auto;position:relative}
+  .kicker{display:inline-flex;align-items:center;gap:8px;font-size:12px;letter-spacing:.18em;
+    text-transform:uppercase;color:var(--accent2);font-weight:700;border:1px solid var(--line);
+    border-radius:999px;padding:6px 14px;background:rgba(34,195,166,.08)}
+  h1.title{font-size:clamp(28px,4.4vw,52px);line-height:1.05;margin:16px 0 6px;font-weight:800;letter-spacing:-.02em}
+  .lead{color:var(--muted);max-width:760px;font-size:17.5px;line-height:1.55}
+  .langtog{position:absolute;top:34px;right:30px;display:flex;border:1px solid var(--line);
+    border-radius:999px;overflow:hidden;background:var(--card)}
+  .langtog button{border:0;background:transparent;color:var(--muted);padding:8px 16px;font-size:13px;
+    font-weight:700;cursor:pointer;transition:.15s;letter-spacing:.04em}
+  .langtog button.on{background:var(--ink);color:#0f1420}
+  .langtog button:not(.on):hover{color:var(--ink)}
+  .toolbar{max-width:1280px;margin:22px auto 0;padding:0 30px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  .chip{cursor:pointer;user-select:none;border:1px solid var(--line);background:var(--card);color:var(--muted);
+    padding:9px 16px;border-radius:999px;font-size:13.5px;font-weight:600;transition:.18s;display:inline-flex;align-items:center;gap:8px}
+  .chip .dot{width:9px;height:9px;border-radius:50%;background:var(--muted)}
+  .chip[data-theme="ctx"] .dot{background:var(--accent)}
+  .chip[data-theme="know"] .dot{background:var(--gold)}
+  .chip[data-theme="tools"] .dot{background:var(--accent2)}
+  .chip:hover{color:var(--ink);border-color:#3b496e}
+  .chip.active{color:#0f1420;background:var(--ink);border-color:var(--ink)}
+  .counter{margin-left:auto;color:var(--muted);font-size:13px}
+  .board{max-width:1280px;margin:22px auto 80px;padding:0 30px;display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:18px;align-items:start}
+  .cardx{position:relative;background:linear-gradient(180deg,var(--card) 0%,var(--card2) 100%);
+    border:1px solid var(--line);border-radius:var(--radius);padding:20px 20px 18px;cursor:pointer;
+    overflow:hidden;transition:transform .18s ease, border-color .18s, box-shadow .18s;min-height:172px;display:flex;flex-direction:column}
+  .cardx::before{content:"";position:absolute;inset:0 auto 0 0;width:4px;background:var(--accent)}
+  .cardx[data-theme="know"]::before{background:var(--gold)}
+  .cardx[data-theme="tools"]::before{background:var(--accent2)}
+  .cardx:hover{transform:translateY(-4px);border-color:#41527d;box-shadow:var(--shadow)}
+  .cardx .num{position:absolute;top:14px;right:16px;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .cardx .ic{font-size:26px;margin-bottom:12px}
+  .cardx h3{margin:0 0 6px;font-size:20.5px;font-weight:750;line-height:1.2;padding-right:20px}
+  .cardx .sub{color:var(--muted);font-size:14.5px;line-height:1.5;flex:1}
+  .cardx .tag{margin-top:14px;font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--accent);display:inline-flex;align-items:center;gap:6px}
+  .cardx[data-theme="know"] .tag{color:var(--gold)}
+  .cardx[data-theme="tools"] .tag{color:var(--accent2)}
+  .cardx.hidden{display:none}
+  .overlay{position:fixed;inset:0;background:rgba(6,9,16,.72);backdrop-filter:blur(4px);
+    display:none;align-items:flex-start;justify-content:center;z-index:50;padding:40px 16px;overflow-y:auto}
+  .overlay.open{display:flex}
+  .modal{width:min(880px,100%);background:var(--bg2);border:1px solid var(--line);border-radius:22px;
+    box-shadow:var(--shadow);padding:0;overflow:hidden;animation:pop .22s ease}
+  @keyframes pop{from{transform:translateY(14px) scale(.98);opacity:0}to{transform:none;opacity:1}}
+  .modal-head{padding:24px 26px 18px;border-bottom:1px solid var(--line);position:relative;
+    background:linear-gradient(180deg,rgba(79,124,255,.10),transparent)}
+  .modal-head .eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  .modal-head h2{margin:8px 0 2px;font-size:29px;font-weight:800;letter-spacing:-.01em}
+  .close{position:absolute;top:18px;right:18px;width:38px;height:38px;border-radius:50%;
+    border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:19px;cursor:pointer;line-height:1;transition:.15s}
+  .close:hover{background:var(--warn);border-color:var(--warn);color:#fff}
+  .modal-body{padding:24px 26px 30px}
+  .compare{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:640px){.compare{grid-template-columns:1fr}}
+  .flip{perspective:1200px;height:250px;cursor:pointer}
+  .flip-inner{position:relative;width:100%;height:100%;transition:transform .6s;transform-style:preserve-3d}
+  .flip.flipped .flip-inner{transform:rotateY(180deg)}
+  .face{position:absolute;inset:0;backface-visibility:hidden;border-radius:16px;padding:18px;
+    display:flex;flex-direction:column;border:1px solid var(--line)}
+  .flip .face{padding-bottom:42px}
+  .face .lbl{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px}
+  .face .big{font-size:17.5px;line-height:1.4;font-weight:600}
+  .face .ex{margin-top:auto;font-size:15.5px;color:var(--muted);line-height:1.45;font-style:italic}
+  .face .hint{position:absolute;bottom:16px;right:16px;font-size:13px;font-weight:700;color:var(--power);opacity:.95}
+  .front.novice{background:rgba(255,198,75,.09);border-color:rgba(255,198,75,.35)}
+  .front.novice .lbl{color:var(--gold)}
+  .front.novice .hint{color:var(--gold)}
+  .front.power{background:rgba(110,168,255,.10);border-color:rgba(110,168,255,.35)}
+  .front.power .lbl{color:var(--power)}
+  .back{transform:rotateY(180deg);background:var(--card2)}
+  .back .lbl{color:var(--accent2)}
+  .back .hint{color:var(--accent2)}
+  .flip-tip{text-align:center;color:var(--muted);font-size:14px;font-weight:600;margin:2px 0 16px}
+  .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+  .tab{border:1px solid var(--line);background:var(--card);color:var(--muted);padding:8px 14px;
+    border-radius:10px;cursor:pointer;font-size:13.5px;font-weight:600;transition:.15s}
+  .tab:hover{color:var(--ink)}
+  .tab.active{background:var(--accent);border-color:var(--accent);color:#fff}
+  .pane{display:none;animation:fade .25s}
+  .pane.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .qrow{display:flex;align-items:center;gap:12px;justify-content:space-between;background:var(--card);
+    border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:10px;flex-wrap:wrap}
+  .qrow .q{font-size:15px;flex:1;min-width:180px}
+  .qbtns{display:flex;gap:8px}
+  .qbtn{border:1px solid var(--line);background:var(--bg2);color:var(--ink);border-radius:10px;
+    padding:8px 12px;font-size:13px;cursor:pointer;font-weight:600;transition:.15s;display:flex;align-items:center;gap:6px}
+  .qbtn:hover{border-color:var(--accent)}
+  .qbtn.correct{background:rgba(34,195,166,.18);border-color:var(--accent2);color:#7ff0d8}
+  .qbtn.wrong{background:rgba(255,107,107,.16);border-color:var(--warn);color:#ffb3b3}
+  .qfeed{width:100%;font-size:13px;color:var(--muted);margin-top:6px;display:none}
+  .qrow.answered .qfeed{display:block}
+  .quiz-score{margin-top:12px;font-weight:700;color:var(--accent2)}
+  .note{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--accent);
+    border-radius:12px;padding:16px 18px;margin:14px 0;line-height:1.6;font-size:16.5px}
+  .note b{color:var(--ink)}
+  ul.clean{list-style:none;padding:0;margin:12px 0}
+  ul.clean li{padding:11px 0 11px 28px;position:relative;border-bottom:1px dashed var(--line);line-height:1.55;font-size:16px}
+  ul.clean li:last-child{border-bottom:0}
+  ul.clean li::before{content:"→";position:absolute;left:2px;color:var(--accent2);font-weight:800}
+  .axis{position:relative;margin:26px 6px;height:10px;background:linear-gradient(90deg,#4f7cff,#ff6b6b);border-radius:6px}
+  .axis .pt{position:absolute;top:-6px;width:20px;height:20px;border-radius:50%;background:var(--bg2);
+    border:2px solid var(--accent);transform:translateX(-50%);cursor:pointer;transition:.15s}
+  .axis .pt:hover{transform:translateX(-50%) scale(1.25);box-shadow:0 0 0 6px rgba(79,124,255,.15)}
+  .axis-labels{display:flex;justify-content:space-between;color:var(--muted);font-size:12px;margin-top:14px}
+  .axis-out{min-height:52px;margin-top:10px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:14px;line-height:1.5}
+  .flow{display:flex;flex-direction:column;gap:0}
+  .step{display:flex;gap:14px;align-items:flex-start;position:relative;padding:0 0 22px}
+  .step:last-child{padding-bottom:0}
+  .step .bullet{width:38px;height:38px;flex:0 0 38px;border-radius:50%;display:flex;align-items:center;
+    justify-content:center;font-weight:800;background:var(--accent);color:#fff;z-index:1}
+  .step:not(:last-child)::before{content:"";position:absolute;left:18px;top:38px;bottom:0;width:2px;background:var(--line)}
+  .step .body{padding-top:5px}
+  .step .body h4{margin:0 0 4px;font-size:16px}
+  .step .body p{margin:0;color:var(--muted);font-size:15px;line-height:1.55}
+  .step .body .model{display:inline-block;font-size:12px;font-weight:700;color:var(--accent2);
+    background:rgba(34,195,166,.1);border:1px solid rgba(34,195,166,.3);padding:2px 9px;border-radius:6px;margin-bottom:6px}
+  .pill{display:inline-block;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:3px 10px;font-size:13px;margin:3px 4px 0 0}
+  .plink{display:inline-flex;align-items:center;gap:8px;margin-top:6px;background:var(--accent);color:#fff;
+    text-decoration:none;font-weight:700;font-size:14.5px;padding:11px 18px;border-radius:12px;transition:.15s}
+  .plink:hover{background:#6a92ff}
+  .reveal{border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:10px 0}
+  .reveal summary{cursor:pointer;padding:13px 16px;font-weight:650;font-size:14.5px;list-style:none;
+    display:flex;justify-content:space-between;align-items:center;background:var(--card)}
+  .reveal summary::after{content:"+";font-size:18px;color:var(--accent2)}
+  .reveal[open] summary::after{content:"–"}
+  .reveal .rc{padding:14px 16px;font-size:14px;line-height:1.55;color:var(--muted)}
+  .subhead{font-weight:700;font-size:15px;margin:20px 0 10px}
+  .chip[data-theme="vibe"] .dot{background:#a78bfa}
+  .chip[data-theme="agents"] .dot{background:#ff8a5c}
+  .cardx[data-theme="vibe"]::before{background:#a78bfa}
+  .cardx[data-theme="agents"]::before{background:#ff8a5c}
+  .cardx[data-theme="vibe"] .tag{color:#c4b5fd}
+  .cardx[data-theme="agents"] .tag{color:#ffb094}
+  .cmp3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:14px 0}
+  @media(max-width:640px){.cmp3{grid-template-columns:1fr}}
+  .cmpcol{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+  .cmpcol .ic{font-size:26px}
+  .cmpcol h4{margin:6px 0 6px;font-size:15px}
+  .cmpcol p{margin:0;color:var(--muted);font-size:14.5px;line-height:1.5}
+  .bldr{display:grid;gap:12px;margin:8px 0 16px}
+  .bldr label{font-size:13px;color:var(--muted);font-weight:600;display:block;margin-bottom:6px}
+  .bldr select{width:100%;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:9px 12px;font-size:14px;font-family:inherit}
+  .toolgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+  .toolgrid label{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 12px;color:var(--ink);font-size:13.5px;font-weight:600;cursor:pointer;margin:0}
+  .toolgrid input{accent-color:var(--accent2)}
+  .agentcard{background:var(--card2);border:1px solid var(--line);border-left:4px solid #ff8a5c;border-radius:12px;padding:16px 18px;font-size:14.5px;line-height:1.7}
+  .maflow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:14px 0}
+  .manode{display:inline-flex;flex-direction:column;align-items:center;gap:4px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:11px 10px;min-width:96px;text-align:center;font-size:12.5px;transition:.2s}
+  .manode.on{border-color:#ff8a5c;background:rgba(255,138,92,.16);box-shadow:0 0 0 4px rgba(255,138,92,.10)}
+  .maarrow{color:var(--muted);font-size:18px}
+  .btn{background:var(--accent);color:#fff;border:0;border-radius:12px;padding:10px 18px;font-weight:700;font-size:14px;cursor:pointer}
+  .btn:hover{background:#6a92ff}
+  .checkitem{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:11px 14px;margin-bottom:8px;cursor:pointer;font-size:14px}
+  .checkitem input{accent-color:var(--accent2);width:18px;height:18px}
+  .promptbubble{background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:13px 16px;font-size:15.5px;margin:10px 0}
+  .codeblk{background:#0d1220;border:1px solid var(--line);border-radius:12px;padding:14px 16px;overflow-x:auto;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;line-height:1.55;color:#cfe0ff;white-space:pre;margin:0}
+  .tplrow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+  .tplbtn{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:12px;padding:10px 14px;font-size:14.5px;font-weight:600;cursor:pointer;transition:.15s}
+  .tplbtn:hover{border-color:#ff8a5c}
+  .tplbtn.on{background:rgba(255,138,92,.16);border-color:#ff8a5c}
+  .tplvis{width:56px;height:56px;flex:0 0 56px;border-radius:14px;background:rgba(255,138,92,.14);border:1px solid rgba(255,138,92,.35);display:flex;align-items:center;justify-content:center;font-size:30px}
+  .rowimg{display:flex;gap:20px;align-items:flex-start}
+  .rowimg-body{flex:1;min-width:0}
+  .rowimg-pic{flex:0 0 250px;width:250px;height:auto;border:1px solid var(--line);border-radius:14px;position:sticky;top:20px}
+  @media(max-width:760px){.rowimg{flex-direction:column}.rowimg-pic{width:100%;flex:auto;position:static}}
+
+  .storylayout{display:flex;align-items:flex-start}
+  .sidebar{position:fixed;left:0;top:0;height:100vh;width:62px;overflow:hidden;padding:0;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:14px;background:rgba(13,18,30,.97);z-index:50;transition:width .25s ease}
+  .sidebar:hover{width:300px;overflow-y:auto;padding:26px 22px;box-shadow:18px 0 40px rgba(0,0,0,.35)}
+  .railhint{display:flex;flex-direction:column;align-items:center;gap:14px;padding-top:18px;color:var(--muted)}
+  .railhint .rh-ic{font-size:22px}
+  .railhint .rh-txt{writing-mode:vertical-rl;font-size:11px;letter-spacing:.22em;text-transform:uppercase;font-weight:700;opacity:.7}
+  .sidebar:hover .railhint{display:none}
+  .sidebar>:not(.railhint){opacity:0;transition:opacity .12s}
+  .sidebar:hover>:not(.railhint){opacity:1}
+  .sidebar .langtog{position:static;align-self:flex-start}
+  .story-title{font-size:25px;font-weight:800;line-height:1.12;letter-spacing:-.02em;margin:2px 0}
+  .chapnav{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+  .chapbtn{display:flex;align-items:center;gap:10px;border:1px solid var(--line);background:var(--card);color:var(--muted);border-radius:12px;padding:11px 13px;font-size:14px;font-weight:700;cursor:pointer;transition:.15s;text-align:left;width:100%}
+  .chapbtn:hover{color:var(--ink);border-color:#3b496e}
+  .chapbtn.on{background:var(--ink);color:#0f1420;border-color:var(--ink)}
+  .chapbtn .cdot{width:11px;height:11px;border-radius:50%;flex:0 0 11px}
+  .maincol{flex:1;min-width:0;margin-left:62px;padding:26px 96px 90px 112px}
+  .stepbar{display:flex;align-items:center;gap:14px;margin-bottom:16px}
+  .chapLabel{font-weight:700;font-size:14px;color:var(--accent2);white-space:nowrap}
+  .chapprog-track{flex:1;height:7px;background:var(--line);border-radius:6px;overflow:hidden}
+  #chapProg{display:block;height:100%;width:0;background:var(--accent);border-radius:6px;transition:width .3s}
+  .stepcount{font-size:13px;color:var(--muted);white-space:nowrap}
+  .sidebar .stepbar{flex-direction:column;align-items:stretch;gap:8px;margin-top:2px}
+  .stage{position:relative;overflow:hidden;min-height:320px}
+  .panel{background:linear-gradient(180deg,var(--card),var(--card2));border:1px solid var(--line);border-radius:20px;padding:26px 30px 34px;box-shadow:var(--shadow)}
+  .p-head{display:flex;align-items:center;gap:16px;margin-bottom:18px}
+  .p-badge{width:62px;height:62px;flex:0 0 62px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:32px;background:rgba(255,255,255,.05);border:1.5px solid var(--line)}
+  .p-eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent2);font-weight:700}
+  .p-title{font-size:30px;font-weight:800;margin:4px 0 0;letter-spacing:-.01em;line-height:1.1}
+  .in-right{animation:slideR .35s ease}
+  .in-left{animation:slideL .35s ease}
+  @keyframes slideR{from{opacity:0;transform:translateX(48px)}to{opacity:1;transform:none}}
+  @keyframes slideL{from{opacity:0;transform:translateX(-48px)}to{opacity:1;transform:none}}
+  .navbtn{position:fixed;top:50%;transform:translateY(-50%);width:58px;height:58px;border-radius:50%;border:1px solid var(--line);background:var(--card2);color:var(--ink);font-size:24px;cursor:pointer;transition:.15s;z-index:40;box-shadow:var(--shadow)}
+  .navbtn:hover:not(:disabled){background:var(--accent);border-color:var(--accent);color:#fff}
+  .navbtn:disabled{opacity:.3;cursor:default}
+  #prevBtn{left:78px}
+  #nextBtn{right:26px}
+  @media(max-width:900px){
+    .storylayout{flex-direction:column}
+    .sidebar{position:static;width:auto;height:auto;overflow:visible;padding:18px 16px;border-right:0;border-bottom:1px solid var(--line)}
+    .sidebar>:not(.railhint){opacity:1}
+    .railhint{display:none}
+    .chapnav{flex-direction:row;flex-wrap:wrap}
+    .chapbtn{width:auto}
+    .maincol{margin-left:0;padding:20px 16px 90px}
+    #prevBtn{left:8px}#nextBtn{right:8px}
+  }
+</style>
+</head>
+<body>
+<div class="storylayout">
+  <aside class="sidebar">
+    <div class="railhint"><span class="rh-ic">☰</span><span class="rh-txt">Menu</span></div>
+    <div class="langtog">
+      <button id="btn-ru" onclick="setLang('ru')">RU</button>
+      <button id="btn-en" class="on" onclick="setLang('en')">EN</button>
+    </div>
+    <span class="kicker" id="kicker"></span>
+    <h1 class="story-title" id="mainTitle"></h1>
+    <nav class="chapnav" id="chapnav"></nav>
+    <div class="stepbar">
+      <span class="chapLabel" id="chapLabel"></span>
+      <div class="chapprog-track"><span id="chapProg"></span></div>
+      <span class="stepcount" id="stepCount"></span>
+    </div>
+  </aside>
+  <main class="maincol">
+    <div class="stage" id="stage"></div>
+  </main>
+</div>
+<button class="navbtn" id="prevBtn" onclick="go(-1)" aria-label="prev">←</button>
+<button class="navbtn" id="nextBtn" onclick="go(1)" aria-label="next">→</button>
+<script>
+var LANG='en';
+function tr(o){return o[LANG];}
+const UI={
+  kicker:{ru:"● AI SUMMIT · интерактивная доска",en:"● AI SUMMIT · interactive board"},
+  title:{ru:"Как стать AI Power User",en:"How to become an AI power user"},
+  lead:{ru:"Кликай по карточкам. Внутри — сравнения «новичок / профи», мини-квизы, таймлайны и простые схемы. По мотивам слайдов саммита, метода Мо Гавдата и Perplexity.",
+        en:"Click the cards. Inside you'll find novice vs pro comparisons, short quizzes, timelines and simple guides. Based on the summit slides, Mo Gawdat's method and Perplexity."},
+  fAll:{ru:"Все",en:"All"},
+  fCtx:{ru:"Контекст и качество",en:"Context & quality"},
+  fKnow:{ru:"Знания модели",en:"Model knowledge"},
+  fTools:{ru:"Инструменты и стратегии",en:"Tools & strategy"},
+  fVibe:{ru:"Введение в Vibe coding",en:"Intro to Vibe coding"},
+  fAgents:{ru:"ИИ-агенты и MCP",en:"AI agents & MCP"},
+  count:{ru:"тем",en:"topics"},
+  topic:{ru:"Тема",en:"Topic"},
+  flipTip:{ru:"Кликни по карточке, чтобы перевернуть",en:"Click a card to flip it"},
+  flipFront:{ru:"клик, чтобы перевернуть ⤺",en:"click to flip ⤺"},
+  flipBack:{ru:"клик, чтобы вернуть ⤻",en:"click to flip back ⤻"},
+  whatsWrong:{ru:"ЧТО НЕ ТАК",en:"WHAT'S WRONG"},
+  whyWorks:{ru:"ПОЧЕМУ РАБОТАЕТ",en:"WHY IT WORKS"},
+  backNovice:{ru:"Мало входных данных → ИИ угадывает → общий, часто бесполезный ответ.",en:"Little input → the AI guesses → a general, often useless answer."},
+  backPower:{ru:"Богатый вход → ИИ опирается на факты → точный, персональный результат.",en:"More input → the AI uses real facts → a clear, personal answer."}
+};
+const CARDS=[
+{
+  id:"data-safety",theme:"ctx",icon:"🔒",num:1,
+  title:{ru:"Безопасность личных данных",en:"Personal data safety"},
+  sub:{ru:"Что нельзя отправлять чат-ботам и как анонимизировать данные перед работой.",
+       en:"What you must not send to chatbots, and how to anonymize data first."},
+  tag:{ru:"Правило безопасности",en:"Safety rule"},
+  render:()=>dataSafetyWidget()
+},
+{
+  id:"gdpr",theme:"ctx",icon:"📋",num:2,
+  title:{ru:"GDPR и политика компании",en:"GDPR and company rules"},
+  sub:{ru:"Соблюдай GDPR и проверяй правила своей организации по использованию чат-ботов на работе.",
+       en:"Follow GDPR and check your company rules on using chatbots at work."},
+  tag:{ru:"Комплаенс",en:"Compliance"},
+  render:()=>tr({
+    ru:'<div class="note">Всегда соблюдай <b>GDPR</b> и проверяй <b>политику своей организации</b> по использованию того или иного чат-бота на рабочем месте.</div><ul class="clean"><li>GDPR защищает персональные данные людей в ЕС</li><li>Проверь, какие ИИ-инструменты разрешены на работе</li><li>Не загружай рабочие и клиентские данные без разрешения</li><li>Сомневаешься — спроси у службы безопасности или руководителя</li></ul>',
+    en:'<div class="note">Always follow <b>GDPR</b> and check <b>your company rules</b> on using a chatbot at work.</div><ul class="clean"><li>GDPR protects personal data of people in the EU</li><li>Check which AI tools are allowed at work</li><li>Do not upload work or client data without permission</li><li>Not sure? Ask your security team or your manager</li></ul>'})
+},
+{
+  id:"context",theme:"ctx",icon:"🎯",num:1,
+  title:{ru:"Правильный контекст",en:"Give the right context"},
+  sub:{ru:"Новичок шлёт короткий промпт и надеется. Профи добавляет файлы, скриншоты и голосовые заметки.",
+       en:"A novice sends a short prompt and hopes. A pro adds files, screenshots and voice notes."},
+  tag:{ru:"Флип-сравнение",en:"Flip compare"},
+  render:()=>compareFlip(
+    {label:"AI NOVICE",
+     big:tr({ru:"Короткий промпт без деталей — надеется, что ИИ додумает",en:"A short prompt with no details — hopes the AI fills the gaps"}),
+     ex:tr({ru:"«Оцени мою бизнес-идею: мобильное тай-дай»",en:'"Rate my business idea: mobile tie-dying"'}),backLbl:tr({ru:"ЧТО ВЫДАЛ ИИ",en:"WHAT THE AI WROTE"}),back:tr({ru:'«Отличная идея! Звучит креативно и перспективно…» — общие слова без конкретики.',en:'"Great idea! Sounds creative and promising…" — vague words, no specifics.'})},
+    {label:"AI POWER USER",
+     big:tr({ru:"Даёт контекст: рынок, бюджет, аудитория, конкуренты, файлы",en:"Adds context: market, budget, audience, competitors, files"}),
+     ex:tr({ru:"«Оцени идею: мобильное тай-дай. Бюджет $5k, город 200k, 3 конкурента, вот расчёты…»",en:'"Rate the idea: mobile tie-dying. Budget $5k, city of 200k, 3 rivals, here are my numbers…"'}),backLbl:tr({ru:"ЧТО ВЫДАЛ ИИ",en:"WHAT THE AI WROTE"}),back:tr({ru:'Конкретный разбор: спрос, точка безубыточности, риски и следующий шаг.',en:'A concrete analysis: demand, break-even point, risks and the next step.'})},
+    tr({ru:"Вывод: контекст превращает «оцени идею» из общих слов в конкретный разбор с цифрами.",en:"The point: context turns \"rate my idea\" from vague words into a concrete, numbers-based analysis."}))+ctxInfo()
+},
+{
+  id:"feedback",theme:"ctx",icon:"🧪",num:2,
+  title:{ru:"Честная критика и подхалимство",en:"Honest feedback, not flattery"},
+  sub:{ru:"ИИ учили нравиться людям, поэтому он часто со всем соглашается. Есть простые способы получить честный ответ.",
+       en:"AI was trained to be liked, so it often just agrees with you. There are simple ways to get an honest answer."},
+  tag:{ru:"Почему + как чинить",en:"Why + how to fix"},
+  render:()=>feedbackWidget()
+},
+{
+  id:"images",theme:"ctx",icon:"💡",num:3,
+  title:{ru:"Итоги мозгового штурма",en:"Brainstorming"},
+  sub:{ru:"Фото доски, стикеров и заметок — и одна просьба свести всё в общий итог.",
+       en:"Photos of the whiteboard, sticky notes and notes — and one ask to sum it all up."},
+  tag:{ru:"Кейс",en:"Use case"},
+  render:()=>tr({
+    ru:'<div class="note">Загрузи все фото с мозгового штурма (доски, стикеры, флипчарты) вместе с <span class="pill">notes.docx</span> и попроси: «Сведи наши идеи со встречи».</div>'
+      +'<ul class="clean"><li>ИИ читает рукописный текст на фото и связывает его с заметками</li><li>Получаешь один понятный итог вместо кучи кусков</li><li>Чем больше полезных фото — тем лучше результат</li></ul>',
+    en:'<div class="note">Upload all your brainstorm photos (whiteboards, sticky notes, flip charts) with a <span class="pill">notes.docx</span> file and ask: "Sum up our ideas from the meeting."</div>'
+      +'<ul class="clean"><li>The AI reads the handwriting in the photos and links it to your notes</li><li>You get one clear summary instead of many pieces</li><li>The more useful photos you add, the better the result</li></ul>'})+brainInfo()
+},
+{
+  id:"patterns",theme:"know",icon:"📈",num:4,
+  title:{ru:"Знания = частота в данных",en:"Knowledge = how common it is online"},
+  sub:{ru:"Чем чаще тема встречается в интернете, тем лучше модель её знает. Редкое — слабое место.",
+       en:"The more common a topic is online, the better the model knows it. Rare topics are weak spots."},
+  tag:{ru:"Интерактивная ось",en:"Interactive axis"},
+  render:()=>axisWidget()
+},
+{
+  id:"frozen",theme:"know",icon:"⏳",num:5,
+  title:{ru:"Знания заморожены во времени",en:"The model's knowledge is frozen"},
+  sub:{ru:"После даты обучения (cutoff) модель не видела ничего нового — тут нужен веб-поиск.",
+       en:"After its training date, the model has not seen anything new — that's when it needs web search."},
+  tag:{ru:"Таймлайн",en:"Timeline"},
+  render:()=>frozenWidget()+cardImg('frozen-knowledge.png')
+},
+{
+  id:"needsearch",theme:"know",icon:"🔍",num:6,
+  title:{ru:"Когда нужен веб-поиск?",en:"When does AI need web search?"},
+  sub:{ru:"Отличай общеизвестное (память модели) от реального времени, локального и нишевого (поиск).",
+       en:"Tell common facts (model's memory) from new, local or rare things (search)."},
+  tag:{ru:"Мини-квиз",en:"Mini-quiz"},
+  render:()=>quizWidget()
+},
+{
+  id:"perplexity",theme:"tools",icon:'<img src="https://www.google.com/s2/favicons?domain=perplexity.ai&sz=64" width="34" height="34" style="border-radius:8px;vertical-align:middle" alt="Perplexity" onerror="this.replaceWith(document.createTextNode(String.fromCharCode(9889)))">',num:7,
+  title:{ru:"Чем силён Perplexity",en:"Why Perplexity is strong"},
+  sub:{ru:"Поисковый ИИ с ссылками и реальным временем — против «памяти» обычных ChatGPT и Gemini.",
+       en:"An AI that searches the web and shows sources — vs the 'memory' of plain ChatGPT and Gemini."},
+  tag:{ru:"Преимущества",en:"Advantages"},
+  render:()=>perplexityWidget()
+},
+{
+  id:"trusted",theme:"know",icon:"🏛️",num:8,
+  title:{ru:"Доверенные источники",en:"Ask for trusted sources"},
+  sub:{ru:"Без указания источников модель ищет где попало. Укажи — и она берёт WHO, FDA, EMA.",
+       en:"With no guidance the model searches anywhere. Tell it, and it uses WHO, FDA, EMA."},
+  tag:{ru:"Флип-сравнение",en:"Flip compare"},
+  render:()=>compareFlip(
+    {label:"AI NOVICE",
+     big:tr({ru:"«Насколько безопасны серые пептиды?»",en:'"How safe are gray market peptides?"'}),
+     ex:tr({ru:"Ищет на Reddit, Quora, honest peptide — маркетинг вместо данных",en:"Searches Reddit, Quora, honest peptide — ads instead of facts"})},
+    {label:"AI POWER USER",
+     big:tr({ru:"«…используй только официальные источники здоровья и науку»",en:'"…only use official health sites and real science"'}),
+     ex:tr({ru:"Ищет в WHO, FDA, EMA — официальные данные",en:"Searches WHO, FDA, EMA — official data"})},
+    tr({ru:"Приём: прямо скажи, какие источники брать. Это управляет качеством ответа.",en:"Trick: just tell it which sources to use. That controls the quality of the answer."}))
+    +tr({ru:'<div class="note" style="border-left-color:var(--gold)"><b>Почему это важно:</b> в интернете о «сером» товаре пишут <b>очень много</b> — форумы, реклама, отзывы. Модель по умолчанию тянется к тому, что <b>чаще упоминается</b>, а не к тому, что <b>доказано</b>. Частота ≠ правда.</div><ul class="clean"><li><b>Объём упоминаний:</b> посты, реклама, форумы — их много, но это мнения и маркетинг</li><li><b>Исследования:</b> рецензируемые работы и данные регуляторов (WHO, FDA, EMA) — их меньше, но они надёжны</li><li>Поэтому прямо проси: «опирайся на исследования и официальные источники»</li></ul>',en:'<div class="note" style="border-left-color:var(--gold)"><b>Why it matters:</b> the internet has <b>a lot</b> written about "gray" products — forums, ads, reviews. By default the model leans toward what is <b>mentioned most</b>, not what is <b>proven</b>. Volume is not truth.</div><ul class="clean"><li><b>Volume of mentions:</b> posts, ads, forums — many, but opinions and marketing</li><li><b>Research:</b> peer-reviewed studies and regulator data (WHO, FDA, EMA) — fewer, but reliable</li><li>So ask directly: "base it on research and official sources"</li></ul>'})
+},
+{
+  id:"deepresearch",theme:"tools",icon:"🔬",num:9,
+  title:{ru:"Web search vs Deep research",en:"Web search vs. deep research"},
+  sub:{ru:"Быстрый факт за секунды — или долгое исследование по сотням источников.",
+       en:"A quick fact in seconds — or long research across hundreds of sources."},
+  tag:{ru:"Табы-сравнение",en:"Tabbed compare"},
+  render:()=>tabsWidget([
+    {name:tr({ru:"🔍 Web search",en:"🔍 Web search"}),html:tr({
+      ru:'<ul class="clean"><li>«Найди хороший зал рядом»</li><li>«Какая погода в Дубае на этой неделе?»</li></ul><div class="note">Вопросов: <b>один</b> · Время: <b>секунды</b> · Источников: <b>мало</b> · Запуск: <b>авто или тобой</b></div>',
+      en:'<ul class="clean"><li>"Find me a good gym nearby"</li><li>"What\'s the weather in Dubai this week?"</li></ul><div class="note">Questions: <b>one</b> · Time: <b>seconds</b> · Sources: <b>a few</b> · Starts: <b>on its own or by you</b></div>'})},
+    {name:tr({ru:"🔬 Deep research",en:"🔬 Deep research"}),html:tr({
+      ru:'<ul class="clean"><li>«Как ежедневные шаги влияют на здоровье в долгую?»</li><li>«Как погода влияет на туризм в Дубае?»</li></ul><div class="note" style="border-left-color:var(--accent2)">Вопросов: <b>много</b> · Время: <b>минуты–часы</b> · Источников: <b>десятки–сотни</b> · Запуск: <b>обычно тобой</b></div>',
+      en:'<ul class="clean"><li>"How do daily steps affect long-term health?"</li><li>"How does weather affect tourism in Dubai?"</li></ul><div class="note" style="border-left-color:var(--accent2)">Questions: <b>many</b> · Time: <b>minutes to hours</b> · Sources: <b>tens to hundreds</b> · Starts: <b>usually by you</b></div>'})}
+  ])+cardImg('web-vs-deep-research.png')+cardImg('web-vs-deep-research-source.png')
+},
+{
+  id:"longcontext",theme:"tools",icon:"📚",num:10,
+  title:{ru:"Deep research на большом наборе данных",en:"Deep research on a big set of data"},
+  sub:{ru:"Пример Deep research: сотни страниц договоров, отзывов и статистики — и один запрос «взвесь всё».",
+       en:"A deep research example: hundreds of pages of contracts, reviews and stats — and one ask to weigh it all."},
+  tag:{ru:"Кейс Deep research",en:"Deep research case"},
+  render:()=>tr({
+    ru:'<div class="note" style="border-left-color:var(--accent2)">Это пример <b>Deep research</b>: большой набор документов, который ИИ читает целиком, прежде чем ответить.</div>'
+      +'<div class="note">Задача: выбрать квартиру. Условия — <span class="pill">Бюджет $2000</span> <span class="pill">&lt;30 мин до работы</span> <span class="pill">Можно с питомцем</span>.</div>'
+      +'<ul class="clean"><li><b>Договоры аренды</b> — 100+ страниц</li><li><b>Отзывы жильцов</b> — 65 страниц</li><li><b>Статистика района</b> — 100+ страниц</li></ul>'
+      +'<div class="note" style="border-left-color:var(--gold)">Запрос: «Плюсы и минусы каждой квартиры? Прочитай всё и подумай как следует». ИИ держит объём, который человек не осилит за раз.</div>',
+    en:'<div class="note" style="border-left-color:var(--accent2)">This is a <b>deep research</b> example: one big set of documents the AI reads fully before it answers.</div>'
+      +'<div class="note">Task: choose an apartment. Rules — <span class="pill">Budget $2000</span> <span class="pill">&lt;30 min to work</span> <span class="pill">Pet OK</span>.</div>'
+      +'<ul class="clean"><li><b>Lease contracts</b> — 100+ pages</li><li><b>Tenant reviews</b> — 65 pages</li><li><b>Neighborhood stats</b> — 100+ pages</li></ul>'
+      +'<div class="note" style="border-left-color:var(--gold)">Prompt: "Pros and cons of each apartment? Read everything and think hard." The AI holds more than a person can read at once.</div>'})+cardImg('big-data-deep-research.png')
+},
+{
+  id:"deep-ideas",theme:"tools",icon:"🧭",num:11,
+  title:{ru:"Идеи для Deep research",en:"Deep research ideas"},
+  sub:{ru:"Куда применить: личный юрист и жалобы; разбор бизнес-идеи с рынком, конкурентами и рисками.",
+       en:"Where to use it: a personal lawyer and complaints; a business idea check with market, rivals and risks."},
+  tag:{ru:"Идеи",en:"Ideas"},
+  render:()=>deepIdeasWidget()+cardImg('deep-research-ideas.png')
+},
+{
+  id:"gawdat",theme:"tools",icon:"⚔️",num:12,
+  title:{ru:"Метод Мо Гавдата",en:"Mo Gawdat's method"},
+  sub:{ru:"«Стравливание нейросетей»: прогонять задачу через разные модели. Автоматически это делает Perplexity Model Council.",
+       en:"Make models check each other: run a task through different models. Perplexity Model Council does this for you."},
+  tag:{ru:"Рабочий процесс",en:"Workflow"},
+  render:()=>gawdatWidget()
+},
+{
+  id:"context-window",theme:"tools",icon:"🧠",num:13,
+  title:{ru:"Контекстное окно и «context rot»",en:"Context window and context rot"},
+  sub:{ru:"Три способа, как ИИ хранит информацию. Длинные чаты слабеют — короткие почти всегда лучше.",
+       en:"Three ways AI keeps information. Long chats get worse — shorter is almost always better."},
+  tag:{ru:"Слайдер + табы",en:"Slider + tabs"},
+  render:()=>'<div class="rowimg"><div class="rowimg-body">'+contextWindowWidget()+'</div>'+rightImg('context-window-rot-vertical-source.png')+'</div>'
+},
+{
+  id:"tokens",theme:"tools",icon:"🧮",num:14,
+  title:{ru:"Форматы данных в токенах",en:"Data formats in tokens"},
+  sub:{ru:"Сколько «стоит» текст, аудио, картинка и видео — и сколько это слов на странице А4.",
+       en:"How much text, audio, image and video cost — and how many words on an A4 page."},
+  tag:{ru:"Инфографика",en:"Infographic"},
+  render:()=>tokensWidget()
+},
+{
+  id:"vc-what",theme:"vibe",icon:"🎨",num:1,
+  title:{ru:"Что такое вайбкодинг",en:"What is vibe coding"},
+  sub:{ru:"Создаёшь программу словами — код пишет ИИ. Фокус на идее, а не на синтаксисе.",
+       en:"You build software with words — the AI writes the code. Focus on the idea, not the syntax."},
+  tag:{ru:"Пояснение",en:"What it is"},
+  render:()=>vibeWhatWidget()
+},
+{
+  id:"vc-newbreed",theme:"vibe",icon:"🚀",num:2,
+  title:{ru:"Новое поколение софта",en:"A new breed of software"},
+  sub:{ru:"Становится возможен софт «в 10× лучше» — личный и нишевый, под твою задачу.",
+       en:"A 10x better kind of software becomes possible — personal and niche, built for you."},
+  tag:{ru:"Флип + пример",en:"Flip + example"},
+  render:()=>compareFlip(
+    {label:tr({ru:"РАНЬШЕ",en:"BEFORE"}),big:tr({ru:"Софт делают большие команды",en:"Software is built by big teams"}),ex:tr({ru:"Узкие, личные задачи невыгодны — их просто не делают",en:"Small, personal needs are not worth the money, so no one builds them"}),backLbl:tr({ru:"ПОЧЕМУ ТАК БЫЛО",en:"WHY IT WAS SO"}),back:tr({ru:"Дорого и долго — окупались только массовые продукты.",en:"Expensive and slow — only mass-market products paid off."})},
+    {label:tr({ru:"СЕЙЧАС",en:"NOW"}),big:tr({ru:"Один человек с ИИ делает инструмент под себя",en:"One person with AI builds a tool for themselves"}),ex:tr({ru:"В 10× лучше подходит именно тебе — личный, нишевый софт",en:"A 10x better fit for you — personal, niche software"}),backLbl:tr({ru:"ПОЧЕМУ ИЗМЕНИЛОСЬ",en:"WHY IT CHANGED"}),back:tr({ru:"ИИ пишет код, порог почти исчез.",en:"The AI writes the code, the barrier is almost gone."})},
+    tr({ru:"Пример: некоторые приложения для личных финансов, трекеры продуктивности и т.п. сейчас выгоднее навайбкодить самому, чем платить ежемесячную подписку.",en:"Example: some personal finance apps, productivity trackers and similar tools are now cheaper to vibe-code yourself than to pay a monthly subscription."}))
+},
+{
+  id:"vc-test",theme:"vibe",icon:"🧪",num:4,
+  title:{ru:"Быстрый тест гипотез",en:"Test ideas fast and cheap"},
+  sub:{ru:"Идея → прототип → тест на людях → вывод. Дёшево ошибаться.",
+       en:"Idea → prototype → test on people → decision. Cheap to fail."},
+  tag:{ru:"Workflow",en:"Workflow"},
+  render:()=>vibeHypWidget()+cardImg('test-ideas-fast-cheap-source.png')
+},
+{
+  id:"vc-security",theme:"vibe",icon:"🛡️",num:5,
+  title:{ru:"Безопасность",en:"Security"},
+  sub:{ru:"Вайбкодинг иногда генерит небезопасный код. Проверяй перед запуском.",
+       en:"Vibe coding sometimes makes insecure code. Check it before launch."},
+  tag:{ru:"Предупреждение + чеклист",en:"Warning + checklist"},
+  render:()=>vibeSecWidget()
+},
+{
+  id:"vc-limits",theme:"vibe",icon:"⚖️",num:6,
+  title:{ru:"Границы и цена",en:"Limits and cost"},
+  sub:{ru:"Серьёзное приложение = много токенов. И результат не гарантирован.",
+       en:"A serious app = many tokens. And the result is not guaranteed."},
+  tag:{ru:"Трезвые ожидания",en:"Reality check"},
+  render:()=>tr({
+    ru:'<div class="note">Трезвые ожидания. <b>Серьёзное приложение стоит много токенов</b> — то есть денег и времени.</div><div class="note" style="border-left-color:var(--warn)"><b>Результат не гарантирован:</b> ИИ может застрять, добавить баги или неверную логику.</div><ul class="clean"><li>Вайбкодинг отличен для прототипов и личных инструментов</li><li>Для сложного продакшена нужны тесты, проверки и часто живой разработчик</li></ul>',
+    en:'<div class="note">Keep expectations real. <b>A serious app costs a lot of tokens</b> — so money and time.</div><div class="note" style="border-left-color:var(--warn)"><b>The result is not guaranteed:</b> the AI can get stuck, add bugs or wrong logic.</div><ul class="clean"><li>Vibe coding is great for prototypes and personal tools</li><li>For complex production you need tests, checks and often a real developer</li></ul>'})
+},
+{
+  id:"vc-china",theme:"vibe",icon:"💰",num:7,
+  title:{ru:"Китайские модели дешевле",en:"Chinese models are cheaper"},
+  sub:{ru:"Заметно дешевле западных, а по качеству кода часто не уступают.",
+       en:"Much cheaper than Western ones, and code quality is often just as good."},
+  tag:{ru:"Сравнение",en:"Comparison"},
+  render:()=>vibeModelsWidget()
+},
+{
+  id:"ag-what",theme:"agents",icon:"🤖",num:1,
+  title:{ru:"Что такое ИИ-агент",en:"What is an AI agent"},
+  sub:{ru:"Не просто чат. Сравни: чат vs ИИ-ассистент vs ИИ-агент.",
+       en:"More than a chat. Compare: chat vs AI assistant vs AI agent."},
+  tag:{ru:"Пояснение + сравнение",en:"Explainer + compare"},
+  render:()=>agentCompareWidget()
+},
+{
+  id:"ag-mcp",theme:"agents",icon:"🔌",num:2,
+  title:{ru:"Что такое MCP-сервер",en:"What is an MCP server"},
+  sub:{ru:"Единый стандарт подключения инструментов и данных к ИИ — «USB-C для ИИ».",
+       en:"One standard way to connect tools and data to AI — a USB-C port for AI."},
+  tag:{ru:"Пояснение",en:"What it is"},
+  render:()=>tr({
+    ru:'<div class="note">MCP — единый стандарт подключения инструментов и данных к ИИ (как <b>«USB-C для ИИ»</b>). MCP-сервер даёт агенту набор инструментов (файлы, почта, база данных), а агент их вызывает.</div><div class="note" style="border-left-color:var(--accent2)">Один стандарт — любой инструмент подходит любому агенту. Не нужно писать отдельную связку под каждую пару «модель ↔ сервис».</div>',
+    en:'<div class="note">MCP is one standard way to connect tools and data to AI (like a <b>USB-C port for AI</b>). An MCP server gives the agent a set of tools (files, email, a database), and the agent calls them.</div><div class="note" style="border-left-color:var(--accent2)">One standard — any tool fits any agent. You do not have to write a custom link for each model-and-service pair.</div>'})+cardImg('what-is-mcp-server.png')
+},
+{
+  id:"ag-how",theme:"agents",icon:"🔄",num:3,
+  title:{ru:"Как работают ИИ-агенты",en:"How AI agents work"},
+  sub:{ru:"Цикл: думает → вызывает инструмент → смотрит результат → повторяет до цели.",
+       en:"The loop: think → call a tool → check the result → repeat until done."},
+  tag:{ru:"Цикл агента",en:"The agent loop"},
+  render:()=>'<div class="rowimg"><div class="rowimg-body">'+agentLoopWidget()+'</div>'+rightImg('how-they-work-source.png')+'</div>'
+},
+{
+  id:"ag-can",theme:"agents",icon:"⚙️",num:4,
+  title:{ru:"Что умеют ИИ-агенты",en:"What AI agents can do"},
+  sub:{ru:"Веб, файлы, почта, календарь, API, запуск кода, автоматизация рутины.",
+       en:"Web, files, email, calendar, APIs, running code, automating routine."},
+  tag:{ru:"Возможности",en:"Capabilities"},
+  render:()=>tr({
+    ru:'<div class="note">Агент делает реальные шаги — не только советует:</div><ul class="clean"><li>Искать в вебе и собирать источники</li><li>Читать и писать файлы</li><li>Работать с почтой и календарём</li><li>Запускать код</li><li>Автоматизировать повторяющиеся задачи — по шагам и без тебя</li></ul>',
+    en:'<div class="note">An agent takes real steps — not just gives advice:</div><ul class="clean"><li>Search the web and gather sources</li><li>Read and write files</li><li>Work with email and calendar</li><li>Run code</li><li>Automate repeating tasks — step by step, without you</li></ul>'})+cardImg('what-they-can-do-source.png')
+},
+{
+  id:"ag-build",theme:"agents",icon:"🛠️",num:5,
+  title:{ru:"Основы разработки",en:"Build the basics"},
+  sub:{ru:"Модель → роль и цель → инструменты/MCP → тест → ограничить права.",
+       en:"Model → role and goal → tools/MCP → test → limit its rights."},
+  tag:{ru:"Пошагово",en:"Step by step"},
+  render:()=>agentBuildStepsWidget()
+},
+{
+  id:"ag-builder",theme:"agents",icon:"🧩",num:6,
+  title:{ru:"Конструктор ИИ-агента",en:"AI agent builder"},
+  sub:{ru:"Выбери цель, модель и инструменты — собери карточку агента.",
+       en:"Pick a goal, a model and tools — build an agent card."},
+  tag:{ru:"Интерактив",en:"Interactive"},
+  render:()=>agentBuilderWidget()
+},
+{
+  id:"ag-multi",theme:"agents",icon:"🕸️",num:7,
+  title:{ru:"Команда агентов",en:"Multi-agent workflow"},
+  sub:{ru:"Несколько агентов делят задачу и передают работу по цепочке.",
+       en:"Several agents split a task and pass work down the chain."},
+  tag:{ru:"Интерактив",en:"Interactive"},
+  render:()=>multiAgentWidget()+cardImg('multi-agent-workflow-source.png')
+},
+];
+function compareFlip(A,B,footerNote){
+  const face=(cls,side)=>{
+    var bl=(side.backLbl!=null)?side.backLbl:(cls==='novice'?tr(UI.whatsWrong):tr(UI.whyWorks));
+    var bt=(side.back!=null)?side.back:(cls==='novice'?tr(UI.backNovice):tr(UI.backPower));
+    return '<div class="flip" onclick="this.classList.toggle(\'flipped\')"><div class="flip-inner">'
+    +'<div class="face front '+cls+'"><div class="lbl">'+side.label+'</div><div class="big">'+side.big+'</div><div class="ex">'+side.ex+'</div><div class="hint">'+tr(UI.flipFront)+'</div></div>'
+    +'<div class="face back"><div class="lbl">'+bl+'</div><div class="big" style="font-size:14.5px">'+bt+'</div><div class="hint">'+tr(UI.flipBack)+'</div></div></div></div>';
+  };
+  return '<p class="flip-tip">'+tr(UI.flipTip)+'</p><div class="compare">'+face('novice',A)+face('power',B)+'</div>'
+    +(footerNote?'<div class="note" style="border-left-color:var(--accent2);margin-top:16px">'+footerNote+'</div>':'');
+}
+function tabsWidget(panes){
+  const id='t'+Math.random().toString(36).slice(2,7);
+  const tabs=panes.map((p,i)=>'<div class="tab '+(i===0?'active':'')+'" onclick="switchTab(\''+id+'\','+i+')">'+p.name+'</div>').join('');
+  const body=panes.map((p,i)=>'<div class="pane '+(i===0?'active':'')+'" data-p="'+id+'-'+i+'">'+p.html+'</div>').join('');
+  return '<div class="tabs" data-tabs="'+id+'">'+tabs+'</div>'+body;
+}
+function switchTab(id,i){
+  document.querySelectorAll('[data-tabs="'+id+'"] .tab').forEach((t,j)=>t.classList.toggle('active',i===j));
+  document.querySelectorAll('[data-p^="'+id+'-"]').forEach(p=>p.classList.toggle('active',p.dataset.p===id+'-'+i));
+}
+function feedbackWidget(){
+  const intro=tr({ru:'<div class="note" style="border-left-color:var(--warn)"><b>Почему ИИ льстит:</b> его учили нравиться людям. Люди чаще лайкают ответы, которые с ними соглашаются — и ИИ учится соглашаться.</div>',
+    en:'<div class="note" style="border-left-color:var(--warn)"><b>Why AI flatters you:</b> it was trained to be liked. People click "like" on answers that agree with them, so the AI learns to agree.</div>'});
+  const q=tr({ru:'<div class="note">Запрос: «Мне кажется, лучше быть интровертом, согласен?»</div>',en:'<div class="note">Prompt: "I think it\'s better to be an introvert, don\'t you?"</div>'});
+  const two='<div class="compare">'
+    +'<div class="face front" style="position:static;height:auto;padding:18px;background:rgba(255,198,75,.09);border-color:rgba(255,198,75,.35)"><div class="lbl" style="color:var(--gold)">'+tr({ru:'Ответ 1 · 👍 приятный',en:'Answer 1 · 👍 nice'})+'</div><div class="big" style="font-size:14.5px">'+tr({ru:'«Интересная мысль! Вот почему я согласен…»',en:'"Interesting idea! Here\'s why I agree…"'})+'</div><div class="ex" style="color:#8fb4ff">'+tr({ru:'Звучит приятно — но это лесть',en:'Sounds nice — but it\'s flattery'})+'</div></div>'
+    +'<div class="face front" style="position:static;height:auto;padding:18px;background:rgba(110,168,255,.10);border-color:rgba(110,168,255,.35)"><div class="lbl" style="color:var(--power)">'+tr({ru:'Ответ 2 · честный',en:'Answer 2 · honest'})+'</div><div class="big" style="font-size:14.5px">'+tr({ru:'«Не обязательно. У обоих типов есть плюсы и минусы»',en:'"Not really. Both types have good and bad sides"'})+'</div><div class="ex" style="color:var(--gold)">'+tr({ru:'Полезнее, хоть и не то, что хотелось',en:'More useful, even if not what you wanted'})+'</div></div>'
+    +'</div>';
+  const fix=tr({ru:'<div class="subhead">Как получить честный ответ (3 простых шага):</div><ul class="clean"><li><b>Задай нейтральный вопрос.</b> Не говори, что тебе нравится идея. Скажи: «Оцени эту идею честно».</li><li><b>Проси плюсы и минусы.</b> «Назови сильные и слабые стороны».</li><li><b>Проси оценку.</b> «Поставь оценку от 1 до 10 и объясни почему».</li></ul>',
+    en:'<div class="subhead">How to get an honest answer (3 easy steps):</div><ul class="clean"><li><b>Ask a neutral question.</b> Don\'t say you like the idea. Say: "Judge this idea honestly."</li><li><b>Ask for good and bad points.</b> "List the strong and weak sides."</li><li><b>Ask for a score.</b> "Give it a score from 1 to 10 and say why."</li></ul>'});
+  return intro+q+two+'<div style="height:10px"></div>'+fix;
+}
+function perplexityWidget(){
+  const items=tr({
+    ru:['<b>Источники по умолчанию</b> — около 22 ссылок на ответ, с номерами и кликабельные. Легко проверить.',
+        '<b>Всегда свежее</b> — ищет в вебе каждый раз. ChatGPT ищет в сети, только если попросишь.',
+        '<b>Выбор модели в одном месте</b> — GPT, Claude, Gemini и другие. Ты выбираешь, кто отвечает.',
+        '<b>Сделан для ресёрча</b> — режимы для учёбы, финансов и др. В тестах верный ответ ~92% против ~87% у ChatGPT.'],
+    en:['<b>Sources by default</b> — about 22 links per answer, numbered and clickable. Easy to check.',
+        '<b>Always fresh</b> — it searches the web every time. ChatGPT only searches if you ask.',
+        '<b>Pick your model in one place</b> — GPT, Claude, Gemini and more. You choose who answers.',
+        '<b>Made for research</b> — modes for study, finance and more. In tests it was right ~92% of the time vs ~87% for ChatGPT.']});
+  const lead=tr({ru:'<div class="note">Обычные ChatGPT и Gemini отвечают в первую очередь <b>из памяти</b>. Perplexity — это <b>поиск с ИИ</b>: сначала находит источники, потом отвечает.</div>',
+    en:'<div class="note">Plain ChatGPT and Gemini answer mostly <b>from memory</b>. Perplexity is <b>AI search</b>: it finds sources first, then answers.</div>'});
+  const list='<ul class="clean">'+items.map(x=>'<li>'+x+'</li>').join('')+'</ul>';
+  function src(label,url){return '<a href="'+url+'" target="_blank" rel="noopener" style="display:inline-block;background:rgba(79,124,255,.16);border:1px solid var(--accent);color:#a9c2ff;border-radius:999px;padding:2px 9px;font-size:12px;font-weight:700;text-decoration:none;margin:0 3px 3px 0">↗ '+label+'</a>';}
+  var yt='https://www.youtube.com/watch?v=_mc6OxFKnB4',sc='https://shavercheck.com/reviews/philips-norelco-shaver-7700-review/',ph='https://www.philips.co.uk/c-p/S7886_35/shaver-series-7000-wet-dry-electric-shaver';
+  const ex=tr({
+    ru:'<div class="subhead">Пример ответа — каждое утверждение со ссылкой на источник</div><div style="background:var(--card2);border:1px solid var(--line);border-left:4px solid var(--accent2);border-radius:12px;padding:16px 18px"><div style="font-size:13.5px;color:var(--muted);margin-bottom:10px">Вопрос: «Philips 7000 series — как для чувствительной кожи?»</div><ul class="clean" style="margin:0"><li><b>Комфорт для кожи:</b> функции SkinGlide/SkinIQ снижают раздражение и делают скольжение мягче. '+src('shavercheck',sc)+'</li><li><b>Для чувствительной кожи:</b> серия 7000 мягче агрессивных бритв, годится для ежедневного бритья без покраснений. '+src('youtube',yt)+src('shavercheck',sc)+'</li><li><b>Длинная щетина:</b> Philips заявляет, что Series 7000 хорошо справляется даже с 3-дневной бородой. '+src('philips.co.uk',ph)+'</li></ul></div>',
+    en:'<div class="subhead">Example answer — every claim links to a source</div><div style="background:var(--card2);border:1px solid var(--line);border-left:4px solid var(--accent2);border-radius:12px;padding:16px 18px"><div style="font-size:13.5px;color:var(--muted);margin-bottom:10px">Question: “Is the Philips 7000 series good for sensitive skin?”</div><ul class="clean" style="margin:0"><li><b>Comfortable on skin:</b> SkinGlide/SkinIQ comfort features reduce irritation and make the shaver glide more smoothly. '+src('shavercheck',sc)+'</li><li><b>Good for sensitive skin:</b> reviews say the 7000 series is gentler than aggressive shavers and fine for daily use without redness. '+src('youtube',yt)+src('shavercheck',sc)+'</li><li><b>Handles longer stubble:</b> Philips says the Series 7000 is designed to handle even 3-day beards. '+src('philips.co.uk',ph)+'</li></ul></div>'});
+  const emph=tr({ru:'<div class="note" style="border-left-color:var(--gold)"><b>Акцент на реальных данных:</b> каждое утверждение подкреплено ссылкой — ответ можно проверить, а не верить на слово.</div>',
+    en:'<div class="note" style="border-left-color:var(--gold)"><b>Focus on real data:</b> every claim is backed by a link — you can verify the answer instead of taking it on trust.</div>'});
+  return lead+list+ex+emph;
+}
+function axisWidget(){
+  const pts=[
+    {x:2,t:tr({ru:"Секретные данные",en:"Secret data"}),d:tr({ru:"🔒 Закрытые данные — модель почти ничего не знает.",en:"🔒 Private data — the model knows almost nothing."})},
+    {x:20,t:tr({ru:"Кантонский",en:"Cantonese"}),d:tr({ru:"🗣️ Редкий в англоязычном вебе — знаний меньше.",en:"🗣️ Rare online in English — the model knows less."})},
+    {x:38,t:tr({ru:"Квазары",en:"Quasars"}),d:tr({ru:"🌌 Узкая тема — среднее покрытие.",en:"🌌 A narrow topic — some coverage."})},
+    {x:66,t:tr({ru:"Фильмы",en:"Movies"}),d:tr({ru:"🎬 Часто обсуждают — модель знает хорошо.",en:"🎬 Talked about a lot — the model knows them well."})},
+    {x:80,t:tr({ru:"Знаменитости",en:"Celebrities"}),d:tr({ru:"🌟 Очень много данных.",en:"🌟 Lots of data."})},
+    {x:93,t:tr({ru:"Готовка",en:"Cooking"}),d:tr({ru:"🍳 Огромное покрытие — модель уверена.",en:"🍳 Huge coverage — the model is sure."})}
+  ];
+  function lerp(t){var a=[79,124,255],b=[255,107,107];return 'rgb('+a.map(function(v,i){return Math.round(v+(b[i]-v)*t);}).join(',')+')';}
+  const rows=pts.map(function(p){var col=lerp(p.x/100);
+    return '<div style="margin-bottom:15px"><div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:6px"><b style="font-size:15.5px">'+p.t+'</b><span style="font-size:12px;color:var(--muted)">'+p.x+'%</span></div>'
+    +'<div style="height:13px;background:rgba(255,255,255,.06);border-radius:999px;overflow:hidden"><span style="display:block;height:100%;width:'+Math.max(p.x,4)+'%;background:'+col+';border-radius:999px"></span></div>'
+    +'<div style="font-size:13.5px;color:var(--muted);margin-top:6px;line-height:1.45">'+p.d+'</div></div>';}).join('');
+  const legend='<div class="axis-labels" style="margin:0 0 16px"><span style="color:#6ea8ff">'+tr({ru:"◀ реже · знаний меньше",en:"◀ rarer · less knowledge"})+'</span><span style="color:#ff8a7a">'+tr({ru:"чаще · надёжнее ▶",en:"more common · more reliable ▶"})+'</span></div>';
+  return '<div class="note">'+tr({ru:"Чем длиннее и «краснее» полоса, тем чаще тема встречается в интернете и тем надёжнее её знает модель.",en:"The longer and “redder” the bar, the more common the topic is online and the more reliably the model knows it."})+'</div>'+legend+rows;
+}
+function showAxis(i){const p=window.__axis[i];const el=document.getElementById('axisOut');if(el)el.innerHTML='<b>'+p.t+'</b> — '+p.d;}
+function quizWidget(){
+  window.__quiz={score:0,answered:0,total:6};
+  const items=tr({
+    ru:[{q:"«Помогите, уронил телефон в суп»",a:"brain",why:"Общеизвестно — модель знает без поиска."},
+        {q:"«Почему кошки смотрят в стены?»",a:"brain",why:"Общее знание из интернета."},
+        {q:"«Что было на пластинке Voyager 1?»",a:"brain",why:"Хорошо известный факт."},
+        {q:"«Что за мем “6 7” из 2025?»",a:"search",why:"Новое — появилось после даты обучения."},
+        {q:"«Найди хороший зал рядом с Mountain View»",a:"search",why:"Про место — нужны свежие локальные данные."},
+        {q:"«Что такое Marquette Mountain Cheese Roll?»",a:"search",why:"Слишком редкое — модель вряд ли знает."}],
+    en:[{q:'"Help, I dropped my phone in soup"',a:"brain",why:"Common — the model knows without search."},
+        {q:'"Why do cats stare at walls?"',a:"brain",why:"General knowledge from the internet."},
+        {q:'"What was on the Voyager 1 record?"',a:"brain",why:"A well-known fact."},
+        {q:'"What is the 6 7 meme from 2025?"',a:"search",why:"New — it came after the training date."},
+        {q:'"Find a good gym near Mountain View"',a:"search",why:"About a place — needs fresh local data."},
+        {q:'"What is the Marquette Mountain Cheese Roll?"',a:"search",why:"Too rare — the model likely doesn't know it."}]});
+  window.__quizItems=items;
+  const bM=tr({ru:"🧠 Память",en:"🧠 Memory"}),bS=tr({ru:"🔍 Поиск",en:"🔍 Search"});
+  const rows=items.map((it,i)=>'<div class="qrow" data-i="'+i+'" data-a="'+it.a+'"><span class="q">'+it.q+'</span>'
+    +'<div class="qbtns"><button class="qbtn" onclick="answerQuiz('+i+',\'brain\')">'+bM+'</button><button class="qbtn" onclick="answerQuiz('+i+',\'search\')">'+bS+'</button></div>'
+    +'<div class="qfeed">'+it.why+'</div></div>').join('');
+  return '<div class="note">'+tr({ru:"Реши для каждого вопроса: ответит ли модель <b>из памяти</b> 🧠 или нужен <b>поиск</b> 🔍?",en:"For each question decide: will the model answer <b>from memory</b> 🧠 or does it need <b>search</b> 🔍?"})+'</div>'+rows+'<div class="quiz-score" id="quizScore"></div>';
+}
+function answerQuiz(i,choice){
+  const row=document.querySelector('.qrow[data-i="'+i+'"]');
+  if(!row||row.classList.contains('answered'))return;
+  const correct=row.dataset.a;
+  const btns=row.querySelectorAll('.qbtn');
+  btns.forEach((b,idx)=>{if((correct==='brain'&&idx===0)||(correct==='search'&&idx===1))b.classList.add('correct');});
+  const clickedCorrect=(choice===correct);
+  if(!clickedCorrect){btns.forEach((b,idx)=>{if((choice==='brain'&&idx===0)||(choice==='search'&&idx===1))b.classList.add('wrong');});}
+  row.classList.add('answered');
+  window.__quiz.answered++;
+  if(clickedCorrect)window.__quiz.score++;
+  const s=window.__quiz;
+  const done=tr({ru:" — готово",en:" — done"}),perfect=tr({ru:" — идеально! 🎉",en:" — perfect! 🎉"}),scoreLbl=tr({ru:"Счёт: ",en:"Score: "});
+  const el=document.getElementById('quizScore');
+  if(el)el.textContent=scoreLbl+s.score+' / '+s.total+(s.answered===s.total?(s.score===s.total?perfect:done):'');
+}
+function gawdatWidget(){
+  const steps=tr({
+    ru:[{n:1,model:"Gemini",h:"Начни с «учёного»",p:"Gemini кажется самой «научной». Берём первый черновик здесь."},
+        {n:2,model:"DeepSeek",h:"Найди пробелы",p:"Отправь результат с вопросом «Что здесь упущено?» — видно то, что первая модель пропустила."},
+        {n:3,model:"ChatGPT",h:"Улучши стиль",p:"«Напиши это лучше». Приятный и понятный стиль."},
+        {n:4,model:"Gemini / Grok",h:"Повтори круг",p:"Верни в Gemini или отправь в Grok для доп. проверки."}],
+    en:[{n:1,model:"Gemini",h:"Start with the 'scientist'",p:"Gemini feels the most 'scientific'. Get the first draft here."},
+        {n:2,model:"DeepSeek",h:"Find the gaps",p:'Send the result and ask "what is missing here?" — it shows what the first model skipped.'},
+        {n:3,model:"ChatGPT",h:"Improve the style",p:'"Write this better." A nice and clear style.'},
+        {n:4,model:"Gemini / Grok",h:"Do another round",p:"Send it back to Gemini or to Grok for one more check."}]});
+  const flow=steps.map(s=>'<div class="step"><div class="bullet">'+s.n+'</div><div class="body"><span class="model">'+s.model+'</span><h4>'+s.h+'</h4><p>'+s.p+'</p></div></div>').join('');
+  const intro=tr({ru:'<div class="note">«Стравливание нейросетей» — прогнать задачу через разные модели по очереди, чтобы обойти слабые места и предвзятость каждой.</div>',
+    en:'<div class="note">"Make models check each other" — run a task through different models one by one, to get past each one\'s weak spots and bias.</div>'});
+  const principles=tr({ru:'<details class="reveal"><summary>Любимые промпты и принципы Мо</summary><div class="rc">• «Найди мне все плюсы и минусы» → сбалансированный ответ.<br>• ИИ — это <b>помощник, а не замена</b>: рутину на ИИ, финальное решение — за собой.<br>• Итог: как будто «занимаешь ~80 баллов IQ» у моделей.</div></details>',
+    en:'<details class="reveal"><summary>Mo\'s favorite prompts and ideas</summary><div class="rc">• "Find me all the good and bad points" → a balanced answer.<br>• AI is a <b>helper, not a replacement</b>: give it the routine work, keep the final call for yourself.<br>• The result: like "borrowing ~80 IQ points" from the models.</div></details>'});
+  const council=tr({ru:'<div class="note" style="border-left-color:var(--accent2)"><b>Готовая альтернатива — Perplexity Model Council.</b> Отправляет один вопрос сразу трём моделям (например Claude, GPT, Gemini). Потом ещё одна модель собирает ответы вместе и показывает, где они согласны, а где нет. Та же идея, но делается за тебя.<br><span style="color:var(--muted);font-size:13px">Есть на Perplexity Max/Enterprise, пока только в вебе. Полезно для ресёрча, важных решений и проверки фактов.</span></div>',
+    en:'<div class="note" style="border-left-color:var(--accent2)"><b>A ready-made option — Perplexity Model Council.</b> It sends one question to three models at once (for example Claude, GPT, Gemini). Then another model puts the answers together and shows where they agree and where they don\'t. Same idea, done for you.<br><span style="color:var(--muted);font-size:13px">On Perplexity Max/Enterprise, web only for now. Good for research, big choices and fact checks.</span></div>'});
+  var photo='<img src="https://commons.wikimedia.org/wiki/Special:FilePath/Mo_Gawdat_2022.png?width=320" alt="Mo Gawdat" style="width:92px;height:92px;object-fit:cover;border-radius:16px;border:1px solid var(--line);flex:0 0 92px" onerror="this.style.display=\'none\'">';
+  var bio=tr({ru:'<div style="display:flex;gap:16px;align-items:center;margin-bottom:16px">'+photo+'<div style="font-size:14.5px;line-height:1.5;color:var(--muted)"><b style="color:var(--ink)">Мо Гавдат</b> — бывший директор по бизнесу Google X («лаборатория мооншотов» Google), автор книг «Solve for Happy» и «Scary Smart» (об ИИ и человечестве). Много говорит о счастье и будущем ИИ.<br><span style="font-size:11.5px;opacity:.7">Фото: Wikimedia Commons, CC BY</span></div></div>',
+    en:'<div style="display:flex;gap:16px;align-items:center;margin-bottom:16px">'+photo+'<div style="font-size:14.5px;line-height:1.5;color:var(--muted)"><b style="color:var(--ink)">Mo Gawdat</b> — former Chief Business Officer at Google X (Google’s moonshot lab), author of “Solve for Happy” and “Scary Smart” (about AI and humanity). He speaks widely on happiness and the future of AI.<br><span style="font-size:11.5px;opacity:.7">Photo: Wikimedia Commons, CC BY</span></div></div>'});
+  return bio+intro+'<div class="flow">'+flow+'</div>'+council+principles;
+}
+function contextWindowWidget(){
+  const tabs=tabsWidget([
+    {name:tr({ru:"💬 Длинный чат",en:"💬 One long chat"}),html:tr({
+      ru:'<div class="note" style="border-left-color:var(--warn)">Один чат на дни/недели набивает окно историей. Модель «видит» всё — но окно ограничено, и качество падает. Это <b>context rot</b>.</div><ul class="clean"><li>Тест 2025: на <b>32k токенов</b> у 10 из 12 моделей качество упало на <b>50%</b></li><li>После <b>50%</b> окна модель начинает забывать <b>начало</b></li><li>Ответы берутся из <b>конца</b> чата, начало «тускнеет»</li></ul>',
+      en:'<div class="note" style="border-left-color:var(--warn)">One chat over days or weeks fills the window with history. The model "sees" it all — but the window is small and quality drops. This is <b>context rot</b>.</div><ul class="clean"><li>2025 test: at <b>32k tokens</b>, 10 of 12 models dropped <b>50%</b> in quality</li><li>After <b>50%</b> of the window, the model starts forgetting the <b>start</b></li><li>Answers come from the <b>end</b> of the chat; the start fades</li></ul>'})},
+    {name:tr({ru:"🗂️ Память",en:"🗂️ Memory"}),html:tr({
+      ru:'<div class="note">Начинаешь заново и полагаешься на встроенную память приложения. Чаты короче, но <b>факты выбирает ИИ</b>, не ты.</div><ul class="clean"><li><b>ChatGPT</b>: держит профиль из ~30–60 коротких фактов</li><li><b>Claude</b>: ищет по прошлым чатам, а не по короткой сводке</li></ul>',
+      en:'<div class="note">You start fresh and rely on the app\'s built-in memory. Chats are shorter, but <b>the AI picks the facts</b>, not you.</div><ul class="clean"><li><b>ChatGPT</b>: keeps a profile of ~30–60 short facts</li><li><b>Claude</b>: searches your past chats, not a short summary</li></ul>'})},
+    {name:tr({ru:"📁 Проекты",en:"📁 Projects"}),html:tr({
+      ru:'<div class="note" style="border-left-color:var(--accent2)">Отдельное место под одну тему. Новый чат в проекте берёт загруженный контекст и не мешает другим.</div><ul class="clean"><li>Добавляешь документы и инструкции один раз</li><li>Проекты не смешиваются между собой</li><li>Можно узко: не «работа», а «майский маркетинг»</li></ul>',
+      en:'<div class="note" style="border-left-color:var(--accent2)">A separate space for one topic. A new chat in a project uses the uploaded context and doesn\'t touch other work.</div><ul class="clean"><li>Add documents and rules once</li><li>Projects don\'t mix with each other</li><li>Keep it narrow: not "work" but "May marketing"</li></ul>'})}
+  ]);
+  const recTabs=tabsWidget([
+    {name:tr({ru:"💎 Gemini Gems",en:"💎 Gemini Gems"}),html:'<div class="note">'+tr({ru:"Готовые персональные ассистенты. Один раз задаёшь роль, контекст и правила — дальше каждый раз стартуешь с этой базы.",en:"Ready-made personal assistants. Set the role, context and rules once, then start each time with that base."})+'</div>'},
+    {name:tr({ru:"🧩 Skills",en:"🧩 Skills"}),html:'<div class="note">'+tr({ru:"Преврати задачу, которую часто повторяешь, в «навык». Тогда начинаешь новый чат, не теряя шаги и фон.",en:"Turn a task you repeat often into a 'skill'. Then you can start a new chat without losing the steps and background."})+'</div>'},
+    {name:tr({ru:"📝 Резюме → новый чат",en:"📝 Summary → new chat"}),html:'<div class="note">'+tr({ru:"Когда чат портится, попроси модель написать короткое резюме главных выводов и решений. Открой новый чат и вставь его как стартовый контекст.",en:"When a chat gets worse, ask the model to write a short summary of the main points and choices. Open a new chat and paste it as your starting context."})+'</div>'},
+    {name:tr({ru:"✂️ По частям",en:"✂️ Small parts"}),html:'<div class="note">'+tr({ru:"Дели большие документы на части. Работай маленькими кусками, а не всё в одном чате.",en:"Split big documents. Work in small parts, not all in one chat."})+'</div>'}
+  ]);
+  const lead=tr({ru:'<div class="note">Вопрос, к которому приходит каждый: <b>вести один длинный чат или каждый раз начинать заново?</b> Ответ: короткие чаты почти всегда лучше для модели.</div>',
+    en:'<div class="note">The question everyone reaches: <b>keep one long chat or start fresh each time?</b> The answer: shorter chats are almost always better for the model.</div>'});
+  const sliderTitle=tr({ru:"Демо «context rot» — потяни ползунок заполнения окна:",en:"Context rot demo — drag the window-fill slider:"});
+  const slider='<div style="margin-top:18px"><div style="font-weight:700;margin-bottom:8px">'+sliderTitle+'</div>'
+    +'<input type="range" min="0" max="100" value="10" step="1" style="width:100%;accent-color:var(--accent)" oninput="updateRot(this.value)">'
+    +'<div class="axis-out" id="rotOut" style="margin-top:12px">'+tr({ru:"🟢 Окно почти пустое — модель работает на пике.",en:"🟢 Window nearly empty — the model works at its best."})+'</div></div>';
+  const recHead='<div class="subhead">'+tr({ru:"Как держать контекст без длинного чата:",en:"Ways to keep context without a long chat:"})+'</div>';
+  return lead+tabs+slider+recHead+recTabs;
+}
+function updateRot(v){
+  v=Math.round(+v);var msg;
+  if(v<50)msg=tr({ru:'🟢 '+v+'% — окно свободно, модель работает на пике.',en:'🟢 '+v+'% — window is free, the model works at its best.'});
+  else if(v<75)msg=tr({ru:'🟡 '+v+'% — прошли 50%: начало чата начинает забываться.',en:'🟡 '+v+'% — past 50%: the start of the chat starts to fade.'});
+  else msg=tr({ru:'🔴 '+v+'% — сильный context rot: качество может упасть ~на 50%. Пора начать новый чат.',en:'🔴 '+v+'% — heavy context rot: quality can drop ~50%. Time to start a new chat.'});
+  const el=document.getElementById('rotOut');if(el)el.textContent=msg;
+}
+function tokensWidget(){
+  const rows=tr({
+    ru:[
+     {ic:"📝",name:"Текст",unit:"1 слово (EN)",cost:"~1.3 токена",w:4,col:"var(--accent2)",eq:"≈ 1 слово"},
+     {ic:"🎙️",name:"Аудио",unit:"1 секунда",cost:"~30–50 токенов",w:8,col:"var(--gold)",eq:"≈ 25–40 слов · почти половина А4 за 10 секунд звука"},
+     {ic:"🖼️",name:"Картинка",unit:"1 изображение",cost:"~250–800 токенов",w:100,col:"var(--accent)",eq:"≈ 200–600 слов · целая страница убористого текста А4"},
+     {ic:"🎬",name:"Видео",unit:"1 секунда",cost:"~250–300 токенов",w:52,col:"var(--power)",eq:"≈ 200–230 слов · около половины страницы А4"}
+    ],
+    en:[
+     {ic:"📝",name:"Text",unit:"1 word (EN)",cost:"~1.3 tokens",w:4,col:"var(--accent2)",eq:"≈ 1 word"},
+     {ic:"🎙️",name:"Audio",unit:"1 second",cost:"~30–50 tokens",w:8,col:"var(--gold)",eq:"≈ 25–40 words · almost half an A4 page per 10 seconds of sound"},
+     {ic:"🖼️",name:"Image",unit:"1 image",cost:"~250–800 tokens",w:100,col:"var(--accent)",eq:"≈ 200–600 words · a full page of dense A4 text"},
+     {ic:"🎬",name:"Video",unit:"1 second",cost:"~250–300 tokens",w:52,col:"var(--power)",eq:"≈ 200–230 words · about half an A4 page"}
+    ]});
+  const lead=tr({ru:'<div class="note">Модель считает всё в <b>токенах</b>. Разные форматы «весят» очень по-разному — вот сколько это примерно слов на странице А4.</div>',
+    en:'<div class="note">The model counts everything in <b>tokens</b>. Different formats weigh very differently — here is roughly how many words that is on an A4 page.</div>'});
+  const body=rows.map(r=>'<div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:10px">'
+    +'<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">'
+    +'<span style="font-size:24px">'+r.ic+'</span>'
+    +'<div style="flex:1;min-width:120px"><div style="font-weight:750;font-size:15.5px">'+r.name+'</div><div style="color:var(--muted);font-size:12.5px">'+r.unit+'</div></div>'
+    +'<span style="background:'+r.col+';color:#0f1420;font-weight:800;font-size:13px;padding:4px 12px;border-radius:999px;white-space:nowrap">'+r.cost+'</span>'
+    +'</div>'
+    +'<div style="height:12px;background:rgba(255,255,255,.06);border-radius:999px;margin:12px 0 8px;overflow:hidden"><span style="display:block;height:100%;width:'+r.w+'%;background:'+r.col+';border-radius:999px"></span></div>'
+    +'<div style="color:var(--muted);font-size:13px;line-height:1.4">'+r.eq+'</div>'
+    +'</div>').join('');
+  const foot=tr({ru:'<div class="note" style="border-left-color:var(--gold)">Вывод: 10 секунд аудио или одна картинка съедают контекст как целая страница текста. Поэтому файлы и медиа заполняют окно быстрее, чем кажется.</div>',
+    en:'<div class="note" style="border-left-color:var(--gold)">Takeaway: 10 seconds of audio or one image eat as much context as a full page of text. So files and media fill the window faster than you think.</div>'});
+  return lead+body+foot;
+}
+
+function deepIdeasWidget(){
+  return tabsWidget([
+    {name:tr({ru:"⚖️ Личный юрист",en:"⚖️ Personal lawyer"}),html:tr({
+      ru:'<div class="note">Если с тобой обошлись нечестно (магазин, сервис, аренда), Deep research может изучить твои права, найти похожие случаи и написать готовую жалобу.</div><ul class="clean"><li>Разбирает твою ситуацию и права</li><li>Ищет похожие случаи и правила</li><li>Пишет готовое письмо-жалобу</li></ul>',
+      en:'<div class="note">If you were treated unfairly (a shop, a service, a rental), deep research can check your rights, find similar cases and write a ready complaint.</div><ul class="clean"><li>Looks at your case and your rights</li><li>Finds similar cases and rules</li><li>Writes a ready complaint letter</li></ul>'})},
+    {name:tr({ru:"📊 Разбор бизнес-идеи",en:"📊 Business idea check"}),html:tr({
+      ru:'<div class="note">Возьми свою бизнес-идею и попроси полный разбор: спрос, конкуренты, риски и шаги выхода на рынок.</div><ul class="clean"><li><b>Спрос:</b> есть ли покупатели и сколько</li><li><b>Конкуренты:</b> кто уже на рынке</li><li><b>Риски:</b> что может пойти не так</li><li><b>Шаги:</b> как выйти на рынок</li></ul>',
+      en:'<div class="note">Take your business idea and ask for a full check: demand, rivals, risks and steps to enter the market.</div><ul class="clean"><li><b>Demand:</b> are there buyers and how many</li><li><b>Rivals:</b> who is already on the market</li><li><b>Risks:</b> what can go wrong</li><li><b>Steps:</b> how to enter the market</li></ul>'})},
+    {name:tr({ru:"🚗 ДТП и страховая",en:"🚗 Car accident & insurer"}),html:tr({
+      ru:'<div class="note">Была авария? Загрузи запись с видеорегистратора. Deep research поможет разобрать момент ДТП и защитить себя, если страховая признала виновным тебя, а ты уверен, что не виноват.</div><ul class="clean"><li>Разбирает запись и хронологию ДТП</li><li>Сопоставляет с ПДД и правилами</li><li>Готовит аргументы и обращение в страховую</li></ul><div class="note" style="border-left-color:var(--warn)">⚠️ Главное — соблюдай ПДД: это лучшая защита. ИИ помогает, но не заменяет юриста.</div>',
+      en:'<div class="note">Had an accident? Upload your dashcam video. Deep research can go through the moment of the crash and help you defend yourself if the insurer blames you but you are sure you are not at fault.</div><ul class="clean"><li>Goes through the video and the timeline</li><li>Compares it with the traffic rules</li><li>Prepares your points and a letter to the insurer</li></ul><div class="note" style="border-left-color:var(--warn)">⚠️ Most important — follow the traffic rules: that is your best defense. AI helps, but it does not replace a lawyer.</div>'})},
+    {name:tr({ru:"🔎 Поиск патентов",en:"🔎 Patent search"}),html:tr({
+      ru:'<div class="note">Есть идея или продукт? Deep research поможет найти похожие патенты — понять, свободна ли идея и что уже запатентовано.</div><ul class="clean"><li>Ищет похожие патенты и заявки</li><li>Показывает, что уже занято</li><li>Помогает понять, где можно отличиться</li></ul>',
+      en:'<div class="note">Have an idea or a product? Deep research can look for similar patents — so you can see if the idea is free and what is already patented.</div><ul class="clean"><li>Looks for similar patents and filings</li><li>Shows what is already taken</li><li>Helps you see where you can stand out</li></ul>'})}
+  ]);
+}
+
+function dataSafetyWidget(){
+  const cats=tr({
+    ru:['<b>Документы и удостоверения:</b> паспорт, ИНН, СНИЛС, водительские права',
+        '<b>Финансы:</b> номера карт, CVC-коды, счета и пароли онлайн-банка',
+        '<b>Медкарты:</b> диагнозы, анализы, назначения (если с твоим ФИО)',
+        '<b>Учётные данные:</b> логины, PIN-коды и пароли от любых сервисов',
+        '<b>Контакты и адреса:</b> домашний адрес, личный телефон, почта',
+        '<b>Особые категории:</b> судимость, политические и религиозные взгляды, интимная жизнь'],
+    en:['<b>Documents and IDs:</b> passport, tax ID, driving licence',
+        '<b>Finance:</b> card numbers, CVC codes, accounts and online-bank passwords',
+        '<b>Medical records:</b> diagnoses, test results, prescriptions (if they show your name)',
+        '<b>Logins:</b> usernames, PIN codes and passwords for any service',
+        '<b>Contacts and addresses:</b> home address, personal phone, email',
+        '<b>Special categories:</b> criminal record, political and religious views, private life']});
+  const intro=tr({ru:'<div class="note" style="border-left-color:var(--warn)">Публичным ИИ (например ChatGPT или Claude) <b>нельзя</b> отправлять данные, которые прямо или косвенно опознают тебя или других людей. Диалоги могут идти на обучение моделей или их могут смотреть разработчики — любая утечка может стать публичной.</div>',
+    en:'<div class="note" style="border-left-color:var(--warn)">You <b>must not</b> send public AI (for example ChatGPT or Claude) any data that can identify you or other people, directly or not. Chats may be used to train models or seen by developers — any leak can become public.</div>'});
+  const head=tr({ru:"Критические данные:",en:"Critical data:"});
+  const list='<div class="subhead">'+head+'</div><ul class="clean">'+cats.map(c=>'<li>'+c+'</li>').join('')+'</ul>';
+  const fix=tr({ru:'<div class="note" style="border-left-color:var(--accent2)"><b>Как работать с такими материалами:</b> сначала полностью анонимизируй. Замени ФИО на <span class="pill">[name]</span>, удали номера документов и финансовые реквизиты — и только потом отправляй.</div>',
+    en:'<div class="note" style="border-left-color:var(--accent2)"><b>How to work with such material:</b> fully anonymize it first. Replace names with <span class="pill">[name]</span>, remove document numbers and financial details — only then send it.</div>'});
+  return intro+list+fix;
+}
+
+function frozenWidget(){
+  var L=tr({ru:{lead:'Интернет продолжает меняться, а знания модели остановились на дате обучения (cutoff).',known:'В обученных знаниях',never:'Никогда не видел',cut:'Дата обучения (cutoff)',ex1:'«Что было на пластинке Voyager 1?»',ex2:'«Что за мем “6 7” из 2025?»',brain:'🧠 знаю',search:'🔍 надо искать',out:'Запрос про мем «6 7» — за пределами знаний модели: он появился после даты обучения. Здесь нужен веб-поиск.',note:'🧠 → может выбрать → 🔍 веб-поиск. Хорошая модель сама решает: «Я про это не знаю — надо поискать».'},
+    en:{lead:'The internet keeps changing, but the model’s knowledge stopped at its training date (cutoff).',known:'In pretrained knowledge',never:'Never seen it',cut:'Training date (cutoff)',ex1:'“What was on the Voyager 1 record?”',ex2:'“What is the 6 7 meme from 2025?”',brain:'🧠 I know',search:'🔍 must search',out:'The “6 7” meme query is outside the model’s knowledge — it appeared after the training date. This is when web search is needed.',note:'🧠 → can choose → 🔍 web search. A good model decides on its own: “I don’t know this — I should search.”'}});
+  var tl='<div style="position:relative;margin:36px 0 10px;padding-bottom:86px">'
+    +'<div style="position:absolute;left:50%;top:-28px;transform:translateX(-50%);font-size:11.5px;color:var(--warn);font-weight:800;white-space:nowrap">⚑ '+L.cut+'</div>'
+    +'<div style="display:flex;height:48px;border-radius:12px;overflow:hidden;border:1px solid var(--line)">'
+    +'<div style="flex:1;background:rgba(34,195,166,.12);display:flex;align-items:center;justify-content:center;font-size:13px;color:#7ff0d8;font-weight:700">'+L.known+'</div>'
+    +'<div style="flex:1;background:rgba(255,107,107,.14);display:flex;align-items:center;justify-content:center;font-size:13px;color:#ffb3b3;font-weight:700">'+L.never+'</div>'
+    +'</div>'
+    +'<div style="position:absolute;left:50%;top:-4px;height:56px;width:3px;background:var(--warn);transform:translateX(-50%);z-index:2"></div>'
+    +'<div style="position:absolute;left:25%;top:58px;transform:translateX(-50%);text-align:center;width:46%"><span class="pill" style="border-color:var(--accent2)">'+L.ex1+'</span><div style="font-size:11.5px;color:#7ff0d8;margin-top:5px;font-weight:700">'+L.brain+'</div></div>'
+    +'<div style="position:absolute;left:75%;top:58px;transform:translateX(-50%);text-align:center;width:46%"><span class="pill" style="border-color:var(--warn)">'+L.ex2+'</span><div style="font-size:11.5px;color:#ffb3b3;margin-top:5px;font-weight:700">'+L.search+'</div></div>'
+    +'</div>';
+  return '<div class="note">'+L.lead+'</div>'+tl+'<div class="note" style="border-left-color:var(--warn)">'+L.out+'</div><div class="note" style="border-left-color:var(--accent2)">'+L.note+'</div>';
+}
+function ctxInfo(){
+  var L=tr({ru:{h:'Больше контекста → точнее ответ',n:'Новичок',p:'Профи',nin:'💬 вопрос',nout:'📄 общий ответ',pin:'💬 вопрос + 📎 файлы + 📊 данные',pout:'🎯 точный разбор'},
+    en:{h:'More context → better answer',n:'Novice',p:'Pro',nin:'💬 question',nout:'📄 generic answer',pin:'💬 question + 📎 files + 📊 data',pout:'🎯 precise analysis'}});
+  function row(tag,ins,out,w,col){return '<div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:14px"><b style="color:'+col+'">'+tag+'</b><span>'+ins+'</span><span style="color:var(--muted)">→</span><span>🤖</span><span style="color:var(--muted)">→</span><span>'+out+'</span></div><div style="height:10px;background:rgba(255,255,255,.06);border-radius:999px;overflow:hidden;margin-top:10px"><span style="display:block;height:100%;width:'+w+'%;background:'+col+';border-radius:999px"></span></div></div>';}
+  return '<div class="subhead">'+L.h+'</div>'+row(L.n,L.nin,L.nout,28,'var(--gold)')+row(L.p,L.pin,L.pout,92,'var(--power)');
+}
+function brainInfo(){
+  var L=tr({ru:{h:'Много входов → один итог',w:'📷 фото доски',st:'🗒️ стикеры',d:'📄 notes.docx',out:'📋 Итог встречи'},
+    en:{h:'Many inputs → one summary',w:'📷 whiteboard',st:'🗒️ sticky notes',d:'📄 notes.docx',out:'📋 Meeting summary'}});
+  function chip(t){return '<span style="background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:13.5px;white-space:nowrap">'+t+'</span>';}
+  return '<div class="subhead">'+L.h+'</div><div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><div style="display:flex;flex-direction:column;gap:8px">'+chip(L.w)+chip(L.st)+chip(L.d)+'</div><span style="color:var(--muted);font-size:22px">→</span><span style="font-size:28px">🤖</span><span style="color:var(--muted);font-size:22px">→</span><span style="background:rgba(34,195,166,.14);border:1px solid var(--accent2);border-radius:12px;padding:12px 16px;font-weight:750;color:#7ff0d8">'+L.out+'</span></div>'+brainServices();
+}
+function brainServices(){
+  var cap=tr({ru:'Эти сервисы помогают автоматически делать транскрипт, краткое резюме, список action items и follow-up после звонков.',en:'These tools automatically make transcripts, short summaries, action-item lists and follow-ups after calls.'});
+  var svc=[{n:'Tactiq',d:'tactiq.io'},{n:'Krisp',d:'krisp.ai'},{n:'Briefly',d:'briefly.ai'},{n:'Summary AI',d:'summary.ai'}];
+  var chips=svc.map(function(x){return '<span style="display:inline-flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:7px 13px;font-size:14px;font-weight:600"><img src="https://www.google.com/s2/favicons?domain='+x.d+'&sz=64" width="20" height="20" style="border-radius:5px" alt="" onerror="this.style.display=\'none\'">'+x.n+'</span>';}).join('');
+  return '<div style="margin-top:18px"><div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">'+chips+'</div><div class="note" style="border-left-color:var(--power);margin-top:0">'+cap+'</div></div>';
+}
+function rightImg(name){var url=encodeURI(name);return '<img class="rowimg-pic" src="'+url+'" alt="" onerror="this.style.display=\'none\'">';}
+function cardImg(name){var url=encodeURI(name);return '<img src="'+url+'" alt="" style="display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:14px;margin-top:18px" onerror="this.style.display=\'none\'">';}
+function flowSteps(arr){
+  return '<div class="flow">'+arr.map((x,i)=>'<div class="step"><div class="bullet">'+(i+1)+'</div><div class="body"><h4>'+x.h+'</h4><p>'+x.p+'</p></div></div>').join('')+'</div>';
+}
+function vibeCostWidget(){
+  const L=tr({ru:{lead:'Раньше — команда, месяцы, деньги. Сейчас — один человек, дни, почти бесплатно. Стоимость создания и распространения падает почти до нуля.',before:'Раньше',now:'Сейчас',build:'Создание',dist:'Распространение',foot:'Порог входа почти исчез — попробовать может почти каждый.'},
+    en:{lead:'Before — a team, months, money. Now — one person, days, almost free. The cost to build and to share drops to near zero.',before:'Before',now:'Now',build:'Building',dist:'Distribution',foot:'The barrier to start almost disappears — almost anyone can try.'}});
+  const bar=(w,col)=>'<div style="height:12px;background:rgba(255,255,255,.06);border-radius:999px;overflow:hidden;margin-top:6px"><span style="display:block;height:100%;width:'+w+'%;background:'+col+';border-radius:999px"></span></div>';
+  const grp=(name)=>'<div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:10px"><div style="font-weight:750;margin-bottom:8px">'+name+'</div>'
+    +'<div style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted)"><span>'+L.before+'</span><span>100%</span></div>'+bar(100,'var(--warn)')
+    +'<div style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-top:10px"><span>'+L.now+'</span><span>~3%</span></div>'+bar(3,'var(--accent2)')+'</div>';
+  return '<div class="note">'+L.lead+'</div>'+grp(L.build)+grp(L.dist)+'<div class="note" style="border-left-color:var(--accent2)">'+L.foot+'</div>';
+}
+function vibeHypWidget(){
+  const steps=tr({ru:[{h:"Идея / гипотеза",p:"«Люди захотят X» — что проверяем."},{h:"Прототип за часы",p:"Навайбкодь рабочую версию быстро и дёшево."},{h:"Тест на людях",p:"Покажи реальным людям, собери данные и отклики."},{h:"Вывод",p:"Развивать, переделать или выбросить. Дёшево ошибаться."}],
+    en:[{h:"Idea / hypothesis",p:"People will want X — what we test."},{h:"Prototype in hours",p:"Vibe-code a working version fast and cheap."},{h:"Test on people",p:"Show it to real people, collect data and feedback."},{h:"Decision",p:"Grow it, redo it or drop it. Cheap to fail."}]});
+  return '<div class="note">'+tr({ru:"Вайбкодинг позволяет быстро и дёшево проверять гипотезы стартапа. Дёшево ошибаться = быстрее найти то, что работает.",en:"Vibe coding lets you test startup ideas fast and cheap. Cheap to fail = faster to find what works."})+'</div>'+flowSteps(steps);
+}
+function vibeSecWidget(){
+  const warn=tr({ru:'<div class="note" style="border-left-color:var(--warn)">Вайбкодинг иногда генерит небезопасный код — и ты можешь этого не заметить.</div>',
+    en:'<div class="note" style="border-left-color:var(--warn)">Vibe coding sometimes writes insecure code — and you may not notice it.</div>'});
+  const big=tr({ru:'<div class="note" style="border-left-color:var(--accent2);font-size:18px"><b>Главное правило:</b> после каждой новой фичи прогоняй приложение через проверку на уязвимости.</div>',
+    en:'<div class="note" style="border-left-color:var(--accent2);font-size:18px"><b>The one rule:</b> after every new feature, run the app through a security check.</div>'});
+  const tips=tr({ru:'<ul class="clean"><li>Проси ИИ: «Проверь этот код на уязвимости и утечки данных»</li><li>Будь предельно осторожен с пользовательскими данными</li><li>Не храни пароли и ключи прямо в коде</li></ul>',
+    en:'<ul class="clean"><li>Ask the AI: "Check this code for security holes and data leaks"</li><li>Be very careful with user data</li><li>Do not keep passwords or keys in the code</li></ul>'});
+  const link=tr({ru:'<div class="note" style="border-left-color:var(--gold)">Связано с карточкой «Безопасность личных данных».</div>',
+    en:'<div class="note" style="border-left-color:var(--gold)">Linked to the "Personal data safety" card.</div>'});
+  return warn+big+tips+link;
+}
+function secCount(){
+  const boxes=document.querySelectorAll('.checkitem input');let done=0;boxes.forEach(b=>{if(b.checked)done++;});
+  const el=document.getElementById('secScore');
+  if(el)el.textContent=tr({ru:'Отмечено: ',en:'Checked: '})+done+' / '+boxes.length+(done===boxes.length?tr({ru:' — готов к запуску ✅',en:' — ready to launch ✅'}):'');
+}
+function vibeModelsWidget(){
+  const L=tr({ru:{lead:'Китайские модели (например DeepSeek, Qwen) заметно дешевле западных, а по качеству кода часто не уступают.',price:'Цена',quality:'Качество кода',west:'Западные',cn:'Китайские',foot:'Для вайбкодинга это значит: те же гипотезы можно проверять ещё дешевле. Цены и качество меняются — сравнивай под свою задачу.'},
+    en:{lead:'Chinese models (for example DeepSeek, Qwen) are much cheaper than Western ones, and their code quality is often just as good.',price:'Price',quality:'Code quality',west:'Western',cn:'Chinese',foot:'For vibe coding this means you can test the same ideas even more cheaply. Prices and quality change — compare for your own task.'}});
+  const bar=(label,w,col,val)=>'<div style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted)"><span>'+label+'</span><span>'+val+'</span></div><div style="height:12px;background:rgba(255,255,255,.06);border-radius:999px;overflow:hidden;margin:6px 0 12px"><span style="display:block;height:100%;width:'+w+'%;background:'+col+';border-radius:999px"></span></div>';
+  const grp=(title,rows)=>'<div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:10px"><div style="font-weight:750;margin-bottom:10px">'+title+'</div>'+rows+'</div>';
+  const price=grp(L.price, bar(L.west,100,'var(--warn)','$$$')+bar(L.cn,35,'var(--accent2)','$'));
+  const quality=grp(L.quality, bar(L.west,90,'var(--power)','~90')+bar(L.cn,85,'var(--accent2)','~85'));
+  const priv=tr({ru:'<div class="note" style="border-left-color:var(--warn)"><b>Но:</b> ты жертвуешь приватностью данных. Китайские сервисы хранят и обрабатывают твои запросы по своим правилам — не отправляй туда чувствительные данные.</div>',en:'<div class="note" style="border-left-color:var(--warn)"><b>But:</b> you give up data privacy. Chinese services store and process your requests under their own rules — do not send sensitive data there.</div>'});
+  return '<div class="note">'+L.lead+'</div>'+price+quality+priv+'<div class="note" style="border-left-color:var(--gold)">'+L.foot+'</div>';
+}
+function agentCompareWidget(){
+  const intro=tr({ru:'<div class="note">ИИ-агент — это не просто чат. Это модель с целью и инструментами; она сама решает шаги и выполняет их.</div>',
+    en:'<div class="note">An AI agent is more than a chat. It is a model with a goal and tools; it decides the steps and does them.</div>'});
+  const cols=tr({ru:[{ic:'💬',n:'Чат',p:'Отвечает словами. Один вопрос → один ответ. Сам ничего не делает.'},{ic:'🧠',n:'ИИ-ассистент',p:'Помнит контекст, может вызвать инструмент по твоей команде, но ждёт указаний на каждом шаге.'},{ic:'🤖',n:'ИИ-агент',p:'Получил цель: сам планирует шаги, вызывает инструменты в цикле и доводит до результата.'}],
+    en:[{ic:'💬',n:'Chat',p:'Replies with words. One question → one answer. It does not act.'},{ic:'🧠',n:'AI assistant',p:'Remembers context, can use a tool when you ask, but waits for your orders at each step.'},{ic:'🤖',n:'AI agent',p:'Give it a goal: it plans the steps, uses tools in a loop, and reaches the result.'}]});
+  const grid='<div class="cmp3">'+cols.map(c=>'<div class="cmpcol"><div class="ic">'+c.ic+'</div><h4>'+c.n+'</h4><p>'+c.p+'</p></div>').join('')+'</div>';
+  const foot=tr({ru:'<div class="note" style="border-left-color:var(--accent2)">Слева направо растёт самостоятельность: от ответа словами — к действиям без ручного управления.</div>',
+    en:'<div class="note" style="border-left-color:var(--accent2)">Left to right, autonomy grows: from replying with words to acting without step-by-step control.</div>'});
+  const scaleLbl=tr({ru:'Шкала автономности',en:'Autonomy scale'});
+  const scale='<div class="subhead">'+scaleLbl+'</div><div style="position:relative;height:10px;border-radius:999px;background:linear-gradient(90deg,#3b496e,#ff8a5c);margin:22px 8px 34px">'
+    +'<span style="position:absolute;left:10%;top:-6px;width:20px;height:20px;border-radius:50%;background:var(--bg2);border:2px solid var(--power);transform:translateX(-50%)"></span>'
+    +'<span style="position:absolute;left:50%;top:-6px;width:20px;height:20px;border-radius:50%;background:var(--bg2);border:2px solid var(--gold);transform:translateX(-50%)"></span>'
+    +'<span style="position:absolute;left:90%;top:-6px;width:20px;height:20px;border-radius:50%;background:var(--bg2);border:2px solid #ff8a5c;transform:translateX(-50%)"></span>'
+    +'<span style="position:absolute;left:10%;top:18px;font-size:12.5px;color:var(--muted);transform:translateX(-50%);white-space:nowrap">'+cols[0].ic+' '+cols[0].n+'</span>'
+    +'<span style="position:absolute;left:50%;top:18px;font-size:12.5px;color:var(--muted);transform:translateX(-50%);white-space:nowrap">'+cols[1].ic+' '+cols[1].n+'</span>'
+    +'<span style="position:absolute;left:90%;top:18px;font-size:12.5px;color:var(--muted);transform:translateX(-50%);white-space:nowrap">'+cols[2].ic+' '+cols[2].n+'</span>'
+    +'</div>';
+  return intro+grid+scale+foot;
+}
+function agentLoopWidget(){
+  const steps=tr({ru:[{h:"Думает над целью",p:"Разбивает задачу на шаги."},{h:"Выбирает инструмент",p:"Решает, какой инструмент нужен сейчас."},{h:"Вызывает инструмент",p:"Например, ищет в вебе или читает файл."},{h:"Смотрит результат",p:"Проверяет, что получилось, и корректирует план."},{h:"Повторяет до цели",p:"Крутит цикл, пока задача не выполнена."}],
+    en:[{h:"Thinks about the goal",p:"Breaks the task into steps."},{h:"Picks a tool",p:"Decides which tool it needs now."},{h:"Calls the tool",p:"For example, searches the web or reads a file."},{h:"Checks the result",p:"Sees what happened and adjusts the plan."},{h:"Repeats until done",p:"Loops until the task is finished."}]});
+  const mcpNote=tr({ru:'<div class="note" style="border-left-color:var(--accent2)"><b>Где здесь MCP:</b> «руки» — это инструменты, и чаще всего их подключают через <b>MCP-сервер</b>. Шаг «вызывает инструмент» = агент дёргает инструмент, который дал MCP. Один стандарт — легко добавлять новые «руки».</div>',en:'<div class="note" style="border-left-color:var(--accent2)"><b>Where MCP fits:</b> the "hands" are the tools, and they are usually connected through an <b>MCP server</b>. The step "calls a tool" = the agent uses a tool that MCP gives it. One standard — easy to add new "hands".</div>'});
+  return '<div class="note">'+tr({ru:"Модель — «мозг», инструменты — «руки» (их часто даёт MCP). Агент крутит короткий цикл:",en:"The model is the brain, the tools are the hands (often provided by MCP). The agent runs a short loop:"})+'</div>'+flowSteps(steps)+mcpNote;
+}
+function agentBuildStepsWidget(){
+  const steps=tr({ru:[{h:"Выбери модель",p:"Claude, GPT, Gemini или дешёвую (DeepSeek) — под задачу и бюджет."},{h:"Задай роль и цель",p:"Системный промпт: кто агент и что должен сделать."},{h:"Дай инструменты",p:"Подключи готовые инструменты или MCP-сервер."},{h:"Протестируй",p:"Проверь на реальных задачах, посмотри, где ошибается."},{h:"Ограничь права",p:"Чётко скажи, что агенту можно, а что нельзя (особенно с данными и деньгами)."}],
+    en:[{h:"Pick a model",p:"Claude, GPT, Gemini or a cheaper one (DeepSeek) — by task and budget."},{h:"Set role and goal",p:"System prompt: who the agent is and what it must do."},{h:"Give it tools",p:"Connect ready tools or an MCP server."},{h:"Test it",p:"Try it on real tasks and see where it fails."},{h:"Limit its rights",p:"Say clearly what it may and may not do (especially with data and money)."}]});
+  return '<div class="note">'+tr({ru:"Как собрать простого агента:",en:"How to build a simple agent:"})+'</div>'+flowSteps(steps);
+}
+function agentBuilderWidget(){
+  var L=tr({ru:{pick:'Выбери готовый шаблон агента — что умеет и с чем работает:',works:'Работает с',caps:'Что умеет',
+    tpls:[
+      {ic:'📨',n:'Customer Reply Drafter',d:'Готовит ответы поддержки: собирает контекст из тикета, аккаунта и баз знаний и пишет готовый ответ клиенту плюс внутренние заметки.',tools:['Asana','Atlassian Rovo','Box','ClickUp','Dropbox','Gmail','Google Drive','HubSpot','Intercom','Linear','Notion','Outlook Email','Slack','Teams'],caps:['Собрать контекст тикета и аккаунта из приложений или загрузок','Написать готовый ответ клиенту','Составить внутренние заметки по обработке']},
+      {ic:'💼',n:'Sales Assistant',d:'Продажные процессы: аналитика по клиентам, конкурентная разведка, подготовка встреч, follow-up и планирование пайплайна.',tools:['Gmail','Google Calendar','Google Drive','HubSpot','Notion','Outlook Calendar','Outlook Email','Slack','Teams'],caps:['Следить за сигналами по клиентам и изменениями','Собрать бриф конкурентной разведки','Подготовить персональный материал для продаж']},
+      {ic:'📊',n:'Data Analysis',d:'Анализ данных по этапам: уточнить вопрос, написать SQL, изучить данные, построить визуализации и проверить качество.',tools:['Airtable','Amplitude','Asana','Atlassian Rovo','Google Drive','Hex','Linear'],caps:['Превратить размытый запрос в план анализа','Прототип сфокусированного дашборда','Выбрать самый понятный график или таблицу']},
+      {ic:'🧭',n:'Chief of Staff',d:'Готовит ёмкий рабочий бриф из календаря, почты и чатов команды: приоритеты, подготовка встреч, TODO и follow-up.',tools:['Gmail','Google Calendar','Outlook Calendar','Outlook Email','Slack','Teams'],caps:['Собрать рабочий бриф из календаря, почты и чатов','Оформить удобный бриф с TODO и ссылками на источники']},
+      {ic:'📣',n:'Marketing Strategy',d:'Превращает маркетинговые запросы в рабочие брифы, черновики и обзоры: стратегия, контент и анализ сигналов в одном процессе.',tools:['Adobe Acrobat','Adobe Express','Adobe Photoshop','Amplitude','Canva','Figma','Gmail','Google Calendar','Google Drive','HubSpot','Mailchimp','Notion','Outlook Calendar','Outlook Email','Slack','Teams'],caps:['Собрать рабочий стратегический бриф','Готовить и улучшать контент','Сводить сигналы рынка и кампаний']}
+    ]},
+    en:{pick:'Pick a ready agent template — what it can do and what it works with:',works:'Works with',caps:'Capabilities',
+    tpls:[
+      {ic:'📨',n:'Customer Reply Drafter',d:'A support-reply workflow: pulls context from your ticket, account and knowledge apps, and drafts a customer-ready reply plus internal notes.',tools:['Asana','Atlassian Rovo','Box','ClickUp','Dropbox','Gmail','Google Drive','HubSpot','Intercom','Linear','Notion','Outlook Email','Slack','Teams'],caps:['Pull ticket and account context from apps or uploads','Draft a customer-ready support reply','Write internal handling notes']},
+      {ic:'💼',n:'Sales Assistant',d:'Generalized sales workflows: account intelligence, competitive research, meeting prep, follow-up and pipeline planning.',tools:['Gmail','Google Calendar','Google Drive','HubSpot','Notion','Outlook Calendar','Outlook Email','Slack','Teams'],caps:['Monitor account signals and recent changes','Build a competitive intelligence brief','Create a tailored sales asset']},
+      {ic:'📊',n:'Data Analysis',d:'A data-analysis workflow around the life of an analysis: sharpen the question, write SQL, inspect the data, build visuals and run a quality pass.',tools:['Airtable','Amplitude','Asana','Atlassian Rovo','Google Drive','Hex','Linear'],caps:['Turn a vague data ask into an analysis plan','Prototype a focused dashboard','Choose the clearest chart or table']},
+      {ic:'🧭',n:'Chief of Staff',d:'Prepare a high-signal operating brief from your schedule, inbox and team-chat: priorities, meeting prep, TODOs and follow-ups.',tools:['Gmail','Google Calendar','Outlook Calendar','Outlook Email','Slack','Teams'],caps:['Prepare an operating brief from schedule, inbox and team chat','Format a scan-friendly brief with TODOs and source links']},
+      {ic:'📣',n:'Marketing Strategy',d:'Turn marketing asks into working briefs, stronger drafts and clearer reviews: strategy, content and signal synthesis in one workflow.',tools:['Adobe Acrobat','Adobe Express','Adobe Photoshop','Amplitude','Canva','Figma','Gmail','Google Calendar','Google Drive','HubSpot','Mailchimp','Notion','Outlook Calendar','Outlook Email','Slack','Teams'],caps:['Build a working strategy brief','Draft and improve content','Synthesize market and campaign signals']}
+    ]}});
+  window.__tpls=L;
+  var btns=L.tpls.map(function(t,i){return '<button class="tplbtn'+(i===0?' on':'')+'" id="tpl-'+i+'" onclick="selectTpl('+i+')">'+t.ic+' '+t.n+'</button>';}).join('');
+  return '<div class="subhead">'+L.pick+'</div><div class="tplrow">'+btns+'</div><div id="tpl-card">'+tplCardHTML(0)+'</div>';
+}
+function tplCardHTML(i){
+  var L=window.__tpls,t=L.tpls[i];
+  var chips=t.tools.map(function(x){return '<span class="pill">'+x+'</span>';}).join(' ');
+  var caps=t.caps.map(function(x){return '<li>'+x+'</li>';}).join('');
+  return '<div class="agentcard"><div style="display:flex;align-items:center;gap:14px;margin-bottom:12px"><div class="tplvis">'+t.ic+'</div><div><div style="font-weight:800;font-size:19px">'+t.n+'</div><div style="color:var(--muted);font-size:14.5px">'+t.d+'</div></div></div>'
+    +'<div style="margin:12px 0 8px"><b>'+L.works+':</b></div><div style="margin-bottom:6px;line-height:2.2">'+chips+'</div>'
+    +'<div style="margin:14px 0 4px"><b>'+L.caps+':</b></div><ul class="clean" style="margin:0">'+caps+'</ul></div>';
+}
+function selectTpl(i){
+  document.querySelectorAll('.tplbtn').forEach(b=>b.classList.remove('on'));
+  const b=document.getElementById('tpl-'+i);if(b)b.classList.add('on');
+  const c=document.getElementById('tpl-card');if(c)c.innerHTML=tplCardHTML(i);
+}
+function vibeWhatWidget(){
+  const intro=tr({ru:'<div class="note">Вайбкодинг — это когда ты создаёшь программу, описывая словами, что нужно, а ИИ пишет код за тебя. Фокус на идее и результате, а не на синтаксисе.</div>',
+    en:'<div class="note">Vibe coding is when you build software by describing what you want in plain words, and the AI writes the code. You focus on the idea and the result, not the syntax.</div>'});
+  const plabel=tr({ru:'Пример промпта:',en:'Example prompt:'});
+  const olabel=tr({ru:'Что генерит ИИ:',en:'What the AI writes:'});
+  const prompt=tr({ru:'«Сделай HTML-кнопку: по клику показывает случайную мотивационную цитату.»',en:'"Make an HTML button: on click it shows a random motivational quote."'});
+  const code='&lt;button onclick="quote()"&gt;💡 Quote&lt;/button&gt;\n&lt;script&gt;\nfunction quote(){\n  const list=["Start now","Less talk, more action","Fail faster"];\n  alert(list[Math.floor(Math.random()*list.length)]);\n}\n&lt;/script&gt;';
+  return intro+'<div class="subhead">'+plabel+'</div><div class="promptbubble">🧑‍💻 '+prompt+'</div>'
+    +'<div class="subhead">'+olabel+'</div><pre class="codeblk">'+code+'</pre>';
+}
+
+function updateAgent(){
+  const L=window.__blabels;if(!L)return;
+  const g=document.getElementById('b-goal'),m=document.getElementById('b-model');if(!g||!m)return;
+  const boxes=[...document.querySelectorAll('#b-tools input')];
+  const chosen=boxes.filter(x=>x.checked).map(x=>+x.value);
+  const toolsStr=chosen.length?chosen.map(i=>L.toolNames[i]).join(', '):'—';
+  const mcpIdx=[2,3,5];
+  const mcpNeeded=chosen.filter(i=>mcpIdx.indexOf(i)>-1).map(i=>L.toolNames[i]);
+  const mcpLine=mcpNeeded.length?(L.mcp+': '+mcpNeeded.join(', ')):L.none;
+  const el=document.getElementById('b-card');
+  if(el)el.innerHTML='<b>'+L.role+':</b> '+g.value+' ('+m.value+')<br><b>'+L.tools+':</b> '+toolsStr+'<br><b>'+L.loop+':</b> '+L.loopTxt+'<br><b>MCP:</b> '+mcpLine;
+}
+function multiAgentWidget(){
+  const L=tr({ru:{lead:'Сложную задачу делят между агентами: «оркестратор» раздаёт работу, специалисты выполняют и передают результат дальше по цепочке.',scenario:'Сценарий',play:'▶ Запустить',
+      scen:[{name:'Ресёрч-отчёт',nodes:[{n:'Оркестратор',d:'Раздаёт задачи'},{n:'Поисковик',d:'Собирает источники'},{n:'Аналитик',d:'Сводит факты'},{n:'Критик',d:'Проверяет'},{n:'Писатель',d:'Пишет отчёт'}]},
+        {name:'Разработка фичи',nodes:[{n:'Планировщик',d:'Делит на шаги'},{n:'Кодер',d:'Пишет код'},{n:'Тестировщик',d:'Проверяет работу'},{n:'Ревью безопасности',d:'Ищет уязвимости'}]},
+        {name:'Разбор почты',nodes:[{n:'Классификатор',d:'Сортирует письма'},{n:'Черновик ответа',d:'Готовит ответ'},{n:'Календарь',d:'Ставит встречи'},{n:'Человек',d:'Эскалация сложного'}]}]},
+    en:{lead:'A hard task is split between agents: an "orchestrator" hands out work, specialists do their part and pass the result down the chain.',scenario:'Scenario',play:'▶ Run',
+      scen:[{name:'Research report',nodes:[{n:'Orchestrator',d:'Hands out tasks'},{n:'Searcher',d:'Gathers sources'},{n:'Analyst',d:'Combines facts'},{n:'Checker',d:'Verifies'},{n:'Writer',d:'Writes the report'}]},
+        {name:'Build a feature',nodes:[{n:'Planner',d:'Splits into steps'},{n:'Coder',d:'Writes code'},{n:'Tester',d:'Checks it works'},{n:'Security review',d:'Looks for holes'}]},
+        {name:'Inbox triage',nodes:[{n:'Classifier',d:'Sorts emails'},{n:'Draft reply',d:'Prepares an answer'},{n:'Calendar',d:'Sets meetings'},{n:'Human',d:'Handles hard cases'}]}]}});
+  window.__ma=L;window.__maIdx=0;
+  const opts=L.scen.map((sc,i)=>'<option value="'+i+'">'+sc.name+'</option>').join('');
+  return '<div class="note">'+L.lead+'</div>'
+    +'<div class="bldr"><div><label>'+L.scenario+'</label><select id="ma-sel" onchange="maSelect(this.value)">'+opts+'</select></div></div>'
+    +'<div id="ma-flow">'+maFlowHTML(0)+'</div>'
+    +'<button class="btn" onclick="maPlay()">'+L.play+'</button>'
+    +'<div class="axis-out" id="ma-out" style="margin-top:12px">—</div>';
+}
+function maFlowHTML(i){
+  const sc=window.__ma.scen[i];let h='<div class="maflow">';
+  sc.nodes.forEach((nd,k)=>{h+='<div class="manode" id="ma-n-'+k+'"><b>'+nd.n+'</b><span style="color:var(--muted);font-size:11.5px">'+nd.d+'</span></div>';if(k<sc.nodes.length-1)h+='<span class="maarrow">→</span>';});
+  return h+'</div>';
+}
+function maSelect(i){window.__maIdx=+i;const f=document.getElementById('ma-flow');if(f)f.innerHTML=maFlowHTML(+i);const o=document.getElementById('ma-out');if(o)o.textContent='—';}
+function maPlay(){
+  const sc=window.__ma.scen[window.__maIdx];const out=document.getElementById('ma-out');
+  sc.nodes.forEach((nd,k)=>{setTimeout(()=>{document.querySelectorAll('.manode').forEach(n=>n.classList.remove('on'));const node=document.getElementById('ma-n-'+k);if(node)node.classList.add('on');if(out)out.innerHTML='<b>'+nd.n+':</b> '+nd.d;},k*900);});
+}
+
+const CHAPTERS=[
+  {key:'ctx',name:UI.fCtx,col:'#4f7cff'},{key:'know',name:UI.fKnow,col:'#ffc64b'},{key:'tools',name:UI.fTools,col:'#22c3a6'},{key:'vibe',name:UI.fVibe,col:'#a78bfa'},{key:'agents',name:UI.fAgents,col:'#ff8a5c'}
+];
+function buildSteps(){var out=[];CHAPTERS.forEach((ch,ci)=>{CARDS.filter(c=>c.theme===ch.key).forEach(c=>out.push({card:c,ch:ci}));});return out;}
+var STEPS=buildSteps();var CUR=0;
+function chapterBounds(ci){var first=STEPS.findIndex(x=>x.ch===ci);var count=STEPS.filter(x=>x.ch===ci).length;return {first:first,count:count};}
+function renderNav(){
+  document.getElementById('chapnav').innerHTML=CHAPTERS.map((ch,i)=>'<button class="chapbtn'+((STEPS[CUR]&&STEPS[CUR].ch===i)?' on':'')+'" onclick="jumpChapter('+i+')"><span class="cdot" style="background:'+ch.col+'"></span>'+(i+1)+'. '+tr(ch.name)+'</button>').join('');
+}
+function renderStep(dir){
+  var st=STEPS[CUR],c=st.card,ch=CHAPTERS[st.ch],b=chapterBounds(st.ch),local=CUR-b.first+1;
+  document.getElementById('chapLabel').textContent=(st.ch+1)+'. '+tr(ch.name);
+  document.getElementById('stepCount').textContent=local+' / '+b.count;
+  var pr=document.getElementById('chapProg');pr.style.width=(local/b.count*100)+'%';pr.style.background=ch.col;
+  var stage=document.getElementById('stage');
+  stage.innerHTML='<div class="panel"><div class="p-head"><div class="p-badge" style="color:'+ch.col+';border-color:'+ch.col+'">'+c.icon+'</div><div><div class="p-eyebrow">'+tr(UI.topic)+' '+(CUR+1)+' / '+STEPS.length+'</div><h2 class="p-title">'+tr(c.title)+'</h2></div></div><div class="p-body">'+c.render()+'</div></div>';
+  if(stage.firstChild)stage.firstChild.classList.add(dir==='prev'?'in-left':'in-right');
+  renderNav();
+  document.getElementById('prevBtn').disabled=(CUR===0);
+  document.getElementById('nextBtn').disabled=(CUR===STEPS.length-1);
+}
+function go(d){var n=CUR+d;if(n<0||n>=STEPS.length)return;CUR=n;renderStep(d<0?'prev':'next');window.scrollTo({top:0,behavior:'smooth'});}
+function jumpChapter(ci){var b=chapterBounds(ci);if(b.first<0)return;var dir=b.first<CUR?'prev':'next';CUR=b.first;renderStep(dir);window.scrollTo({top:0,behavior:'smooth'});}
+function renderChromeStory(){
+  document.getElementById('kicker').textContent=tr(UI.kicker);
+  document.getElementById('mainTitle').textContent=tr({ru:'AI Summit — сторителлинг',en:'AI Summit — story'});
+  document.documentElement.lang=LANG;
+  renderNav();renderStep('next');
+}
+function setLang(l){if(l===LANG)return;LANG=l;document.getElementById('btn-ru').classList.toggle('on',l==='ru');document.getElementById('btn-en').classList.toggle('on',l==='en');STEPS=buildSteps();CUR=0;renderChromeStory();}
+document.addEventListener('keydown',e=>{if(e.key==='ArrowRight')go(1);else if(e.key==='ArrowLeft')go(-1);});
+renderChromeStory();
+</script>
+</body>
+</html>
